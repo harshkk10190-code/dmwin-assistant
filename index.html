@@ -90,8 +90,6 @@ button.danger{
 const API =
 "https://draw.ar-lottery01.com/WinGo/WinGo_1M/GetHistoryIssuePage.json?pageNo=1&pageSize=10";
 
-const history = document.getElementById("history");
-
 /* ================= STATE ================= */
 let state = JSON.parse(localStorage.getItem("dmwin_color_state")) || {
   wins:0,
@@ -221,11 +219,12 @@ async function tick(){
     `📊 Wins: ${state.wins} | ❌ Losses: ${state.losses} | 🎯 Accuracy: ${acc}%`;
 
   /* === LATEST RESULTS (COMPLETED ONLY) === */
-  history.innerHTML = list.slice(1,6).map(i=>{
-  const parts = colorOf(i.number).split(",");
-  const html = parts.map(p=>`<span class="${p}">${p}</span>`).join(" + ");
-  return `<div>${i.issueNumber} → ${html}</div>`;
-}).join("");
+  history.innerHTML = list.slice(0,5).map(i=>{
+    const parts = colorOf(i.number).split(",");
+    const html = parts.map(p=>`<span class="${p}">${p}</span>`).join(" + ");
+    return `<div>${i.issueNumber} → ${html}</div>`;
+  }).join("");
+}
 
 /* ================= TIMER ================= */
 setInterval(()=>{
