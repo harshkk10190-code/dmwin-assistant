@@ -24,14 +24,12 @@ body{
   padding:14px;
   margin-bottom:14px;
 }
-h1{font-size:20px;margin:0}
+h1{margin:0 0 6px;font-size:20px}
 .small{opacity:.7;font-size:13px}
 .green{color:#2ecc71}
 .red{color:#ff4d4d}
 .violet{color:#c77dff}
 .wait{color:#f1c40f}
-.big{color:#3498db}
-.smallTxt{color:#f39c12}
 hr{border:none;border-top:1px solid #1f3b8f;margin:10px 0}
 </style>
 </head>
@@ -40,18 +38,16 @@ hr{border:none;border-top:1px solid #1f3b8f;margin:10px 0}
 <div class="container">
 
 <h1>🧠 DmWin Smart Assistant</h1>
-<div class="small">📘 Education / analysis only</div>
+<div class="small">Education / analysis only</div>
 
 <div class="card">
-  🟢 <b>Status:</b> <span class="green">LIVE</span><br>
-  🔄 <span class="small">Manual refresh • Auto fetch every 60s</span>
+🟢 <b>Status:</b> LIVE<br>
+⏱ <span id="timer">--s remaining</span>
 </div>
 
-<div class="card" id="predictionBox">⏳ Loading prediction…</div>
+<div class="card" id="predictionBox">Loading…</div>
 
-<div class="card" id="bigSmallBox">⏳ Loading Big/Small…</div>
-
-<div class="card" id="resultBox">⌛ Waiting for result…</div>
+<div class="card" id="resultBox">Waiting for result…</div>
 
 <div class="card" id="statsBox">
 📊 Wins: 0 | ❌ Losses: 0 | 🎯 Accuracy: 0%
@@ -59,134 +55,131 @@ hr{border:none;border-top:1px solid #1f3b8f;margin:10px 0}
 
 <div class="card">
 📜 <b>Latest Results</b>
-<div id="history" class="small">Loading…</div>
+<div id="history"></div>
 </div>
 
-<div class="small">⚠️ No guarantees • Avoid over betting • Stay disciplined</div>
+<div class="small">⚠ No guarantees • Avoid over betting • Stay disciplined</div>
 
 </div>
 
 <script>
-const API =
-"https://draw.ar-lottery01.com/WinGo/WinGo_1M/GetHistoryIssuePage.json?pageNo=1&pageSize=20";
+const API="https://draw.ar-lottery01.com/WinGo/WinGo_1M/GetHistoryIssuePage.json?pageNo=1&pageSize=20";
 
-let lastPrediction = null;
-let lastPeriodChecked = null;
-let wins = 0, losses = 0;
+let lastBet=null;
+let wins=0,losses=0;
 
-// COLOR MAP
+// restore stats
+if(localStorage.dmwinStats){
+  ({wins,losses}=JSON.parse(localStorage.dmwinStats));
+}
+
+function saveStats(){
+  localStorage.dmwinStats=JSON.stringify({wins,losses});
+}
+
 function colorOf(n){
-  n = Number(n);
-  if(n === 0) return "red,violet";
-  if(n === 5) return "green,violet";
-  return n % 2 === 0 ? "red" : "green";
+  n=Number(n);
+  if(n===0) return "red,violet";
+  if(n===5) return "green,violet";
+  return n%2===0?"red":"green";
 }
 
-// BIG / SMALL
 function sizeOf(n){
-  n = Number(n);
-  return n >= 5 ? "BIG" : "SMALL";
+  return n>=5?"BIG":"SMALL";
 }
 
-// COLOR AI
-function analyzeColor(list){
-  const colors = list.map(i => colorOf(i.number));
-  const pure = colors.filter(c=>!c.includes("violet"));
+// 🔥 HACKER-LEVEL ANALYSIS
+function analyze(list){
+  let g=0,r=0,violet=0,big=0,small=0;
 
-  const g = pure.filter(c=>c==="green").length;
-  const r = pure.filter(c=>c==="red").length;
-  const v = colors.filter(c=>c.includes("violet")).length;
+  list.forEach((i,idx)=>{
+    let w = idx<5 ? 1.6 : idx<10 ? 1.1 : 0.7;
+    let c=colorOf(i.number);
+    let s=sizeOf(i.number);
 
-  if(v >= 2) return {action:"WAIT", confidence:0, reason:"Violet risk high"};
-  if(Math.abs(g-r) <= 1) return {action:"WAIT", confidence:30, reason:"Low bias"};
+    if(c.includes("violet")) violet+=w;
+    if(c==="green") g+=w;
+    if(c==="red") r+=w;
+    if(s==="BIG") big+=w;
+    if(s==="SMALL") small+=w;
+  });
+
+  const total=g+r;
+  const bias=Math.max(g,r)/Math.max(1,total);
+
+  if(violet>=3) return {action:"WAIT",reason:"High violet risk"};
+  if(bias<0.60) return {action:"WAIT",reason:"Low bias"};
+
+  const color=g>r?"GREEN":"RED";
+  const size=big>small?"BIG":"SMALL";
 
   return {
-    action: g > r ? "GREEN" : "RED",
-    confidence: Math.min(90, 50 + Math.abs(g-r)*10)
+    action:color,
+    size,
+    confidence:Math.round(bias*100)
   };
 }
 
-// BIG SMALL AI
-function analyzeSize(list){
-  const sizes = list.map(i => sizeOf(i.number));
-  const big = sizes.filter(s=>s==="BIG").length;
-  const small = sizes.filter(s=>s==="SMALL").length;
-
-  if(Math.abs(big-small) <= 1) return "WAIT";
-  return big > small ? "BIG" : "SMALL";
-}
-
 async function tick(){
-  const res = await fetch(API);
-  const json = await res.json();
-  const list = json.data.list;
-  if(!list || !list.length) return;
+  const res=await fetch(API);
+  const json=await res.json();
+  const list=json.data.list;
 
-  const latest = list[0];
-  const latestColor = colorOf(latest.number);
+  const a=analyze(list);
+  const box=document.getElementById("predictionBox");
 
-  // COLOR PREDICTION
-  const c = analyzeColor(list);
-  const pBox = document.getElementById("predictionBox");
-
-  if(c.action === "WAIT"){
-    pBox.innerHTML = `
-      🎯 <b>Color AI:</b> <span class="wait">WAIT</span><br>
-      ⚠️ <span class="small">${c.reason}</span>
-    `;
-    lastPrediction = null;
+  if(a.action==="WAIT"){
+    box.innerHTML=`🎯 <b>Prediction:</b> <span class="wait">WAIT</span><br>
+    ⚠ ${a.reason}`;
+    lastBet=null;
   }else{
-    pBox.innerHTML = `
-      🎯 <b>Color AI:</b>
-      <span class="${c.action.toLowerCase()}">${c.action}</span><br>
-      🔥 Confidence: ${c.confidence}%
-    `;
-    lastPrediction = c.action;
+    box.innerHTML=`🎯 <b>Color:</b> <span class="${a.action.toLowerCase()}">${a.action}</span><br>
+    📐 <b>Big/Small:</b> ${a.size}<br>
+    🔥 Confidence: ${a.confidence}%`;
+    lastBet={color:a.action,size:a.size};
   }
 
-  // BIG SMALL
-  const bs = analyzeSize(list);
-  document.getElementById("bigSmallBox").innerHTML = `
-    📐 <b>Big/Small AI:</b>
-    <span class="${bs==="BIG"?"big":bs==="SMALL"?"smallTxt":"wait"}">${bs}</span>
-  `;
+  // RESULT CHECK
+  const latest=list[0];
+  const lc=colorOf(latest.number);
+  const ls=sizeOf(latest.number);
+  const rb=document.getElementById("resultBox");
 
-  // RESULT CHECK (ONCE PER PERIOD)
-  const rBox = document.getElementById("resultBox");
-  if(lastPeriodChecked !== latest.issueNumber){
-    if(!lastPrediction){
-      rBox.innerHTML = `⏸️ No bet placed (WAIT)`;
+  if(lastBet){
+    if(lc.includes(lastBet.color.toLowerCase()) && ls===lastBet.size){
+      wins++; rb.innerHTML="✅ Last Bet: WIN";
     }else{
-      if(latestColor.includes(lastPrediction.toLowerCase())){
-        wins++;
-        rBox.innerHTML = `✅ Result: <span class="green">WIN</span>`;
-      }else{
-        losses++;
-        rBox.innerHTML = `❌ Result: <span class="red">LOSS</span>`;
-      }
+      losses++; rb.innerHTML="❌ Last Bet: LOSS";
     }
-    lastPeriodChecked = latest.issueNumber;
+    saveStats();
+    lastBet=null;
   }
 
-  // STATS
-  const total = wins + losses;
-  const acc = total ? Math.round((wins/total)*100) : 0;
-  document.getElementById("statsBox").innerHTML =
+  const total=wins+losses;
+  const acc=total?Math.round(wins/total*100):0;
+  document.getElementById("statsBox").innerHTML=
     `📊 Wins: ${wins} | ❌ Losses: ${losses} | 🎯 Accuracy: ${acc}%`;
 
   // HISTORY
-  document.getElementById("history").innerHTML =
+  document.getElementById("history").innerHTML=
     list.slice(0,5).map(i=>{
-      const c = colorOf(i.number);
-      return `<div class="${c.includes("green")?"green":c.includes("red")?"red":"violet"}">
-        ${i.issueNumber} → ${c}
+      const c=colorOf(i.number);
+      return `<div class="${c.includes("green")?"green":"red"}">
+      ${i.issueNumber} → ${c}
       </div>`;
     }).join("");
 }
 
+// TIMER synced to real minute
+function timer(){
+  const s=60-new Date().getSeconds();
+  document.getElementById("timer").innerText=`${s}s remaining`;
+}
+
 tick();
 setInterval(tick,60000);
+setInterval(timer,1000);
+timer();
 </script>
-
 </body>
 </html>
