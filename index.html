@@ -1,39 +1,42 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>🧠 DmWin Color Assistant</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <style>
 body {
-  margin:0;
-  font-family: Arial, sans-serif;
-  background: linear-gradient(180deg,#020617,#020024);
-  color:#e5e7eb;
+  margin: 0;
+  font-family: system-ui, sans-serif;
+  background: linear-gradient(180deg,#050b1f,#0b1535);
+  color: #e8ecff;
 }
 .container {
-  max-width:420px;
-  margin:auto;
-  padding:16px;
+  max-width: 420px;
+  margin: 20px auto;
+  padding: 16px;
 }
-.box {
-  background:rgba(255,255,255,0.05);
-  border:1px solid #1e3a8a;
-  border-radius:14px;
-  padding:14px;
-  margin-bottom:14px;
+.card {
+  background: #0e1a3a;
+  border: 1px solid #1f3b8f;
+  border-radius: 12px;
+  padding: 14px;
+  margin-bottom: 14px;
 }
-.green{color:#22c55e}
-.red{color:#ef4444}
-.violet{color:#c084fc}
-.wait{color:#facc15}
-.lock{color:#fb7185}
-.small{font-size:13px;opacity:.7}
-h1{font-size:22px;margin-bottom:6px}
-ul{padding-left:18px}
-li{font-size:14px;margin-bottom:4px}
-.footer{font-size:12px;opacity:.5;text-align:center;margin-top:16px}
+h1 {
+  font-size: 20px;
+  margin: 0 0 6px;
+}
+.small {
+  opacity: .7;
+  font-size: 13px;
+}
+.green { color: #2ecc71 }
+.red { color: #ff4d4d }
+.violet { color: #c77dff }
+.wait { color: #f1c40f }
+hr { border: none; border-top: 1px solid #1f3b8f; margin: 10px 0 }
 </style>
 </head>
 
@@ -41,126 +44,134 @@ li{font-size:14px;margin-bottom:4px}
 <div class="container">
 
 <h1>🧠 DmWin Color Assistant</h1>
-<div class="small">📚 Education / analysis only</div>
+<div class="small">📘 Education / analysis only</div>
 
-<div class="box">
-🚦 Status: <b class="green">LIVE</b><br>
-🔄 Auto sync by period
+<div class="card">
+  🟢 <b>Status:</b> <span class="green">LIVE</span><br>
+  🔄 <span class="small">Manual refresh • Auto fetch every 60s</span>
 </div>
 
-<div class="box">
-🎯 <b>Prediction</b><br>
-<div id="predText" class="wait">WAIT ⏳</div>
-<div id="predPeriod" class="small"></div>
-⚠️ Violet risk high
+<div class="card" id="predictionBox">
+  ⏳ Loading prediction…
 </div>
 
-<div class="box">
-📊 <b>Stats</b><br>
-<div id="stats">✅ Wins: 0 | ❌ Losses: 0 | 🎯 Accuracy: 0%</div>
+<div class="card" id="resultBox">
+  🧾 Waiting for result…
 </div>
 
-<div class="box">
-🧾 <b>Latest Results</b>
-<ul id="results"></ul>
+<div class="card" id="statsBox">
+  📊 Wins: 0 | ❌ Losses: 0 | 🎯 Accuracy: 0%
 </div>
 
-<div class="footer">
-⚠️ No guarantees • Avoid over betting • Stay disciplined
+<div class="card">
+  📜 <b>Latest Results</b>
+  <div id="history"></div>
 </div>
+
+<div class="small">⚠️ No guarantees • Avoid over betting • Stay disciplined</div>
 
 </div>
 
 <script>
-// ====== STATE ======
-let history = [
- {id:"20260128100010621",color:"red"},
- {id:"20260128100010620",color:"green"},
- {id:"20260128100010619",color:"green"},
- {id:"20260128100010618",color:"green"},
- {id:"20260128100010617",color:"green,violet"}
-];
+const API =
+"https://draw.ar-lottery01.com/WinGo/WinGo_1M/GetHistoryIssuePage.json?pageNo=1&pageSize=10";
 
-let lastEvaluatedPeriod = null;
-let currentPrediction = null;
-let wins = 0;
-let losses = 0;
+let lastPredictedPeriod = null;
+let lastPrediction = null;
+let wins = 0, losses = 0;
 
-// ====== DOM ======
-const resultsEl = document.getElementById("results");
-const predText = document.getElementById("predText");
-const predPeriod = document.getElementById("predPeriod");
-const statsEl = document.getElementById("stats");
-
-// ====== HELPERS ======
-function nextPeriod(id){
-  return (BigInt(id) + 1n).toString();
+function colorOf(n){
+  n = Number(n);
+  if(n === 0) return "red,violet";
+  if(n === 5) return "green,violet";
+  return n % 2 === 0 ? "red" : "green";
 }
 
-function renderResults(){
-  resultsEl.innerHTML="";
-  history.slice(0,5).forEach(r=>{
-    let cls = r.color.includes("green")?"green":
-              r.color.includes("red")?"red":"violet";
-    resultsEl.innerHTML += `<li class="${cls}">${r.id} → ${r.color}</li>`;
-  });
+function analyze(list){
+  const colors = list.map(i => colorOf(i.number));
+  const pure = colors.filter(c => !c.includes("violet"));
+
+  const greenCount = pure.filter(c => c==="green").length;
+  const redCount   = pure.filter(c => c==="red").length;
+  const violetCount = colors.filter(c => c.includes("violet")).length;
+
+  // 🛑 Defensive rules
+  if(violetCount >= 2)
+    return {action:"WAIT", reason:"⚠️ Violet risk high"};
+
+  if(greenCount >= 4 && redCount <= 1)
+    return {action:"WAIT", reason:"🔁 Green streak trap"};
+
+  if(redCount >= 4 && greenCount <= 1)
+    return {action:"WAIT", reason:"🔁 Red streak trap"};
+
+  if(greenCount > redCount)
+    return {action:"GREEN", confidence:"🟡 MEDIUM"};
+
+  if(redCount > greenCount)
+    return {action:"RED", confidence:"🟡 MEDIUM"};
+
+  return {action:"WAIT", reason:"😴 No clear bias"};
 }
 
-function makePrediction(){
-  let greens = history.filter(h=>h.color.includes("green")).length;
-  let reds = history.filter(h=>h.color.includes("red")).length;
+async function tick(){
+  const res = await fetch(API);
+  const json = await res.json();
+  const list = json.data.list;
 
-  if(greens>=3){
-    currentPrediction="red";
-    predText.innerHTML="🔴 RED";
-    predText.className="red";
-  } else if(reds>=3){
-    currentPrediction="green";
-    predText.innerHTML="🟢 GREEN";
-    predText.className="green";
+  const currentPeriod = list[0].issueNumber;
+  const analysis = analyze(list);
+
+  // 🎯 Prediction (for NEXT round)
+  const box = document.getElementById("predictionBox");
+  if(analysis.action === "WAIT"){
+    box.innerHTML = `
+      🎯 <b>Prediction:</b> <span class="wait">WAIT</span><br>
+      <span class="small">${analysis.reason}</span>
+    `;
+    lastPrediction = null;
+    lastPredictedPeriod = null;
   } else {
-    currentPrediction=null;
-    predText.innerHTML="WAIT ⏳";
-    predText.className="wait";
+    box.innerHTML = `
+      🎯 <b>Prediction:</b>
+      <span class="${analysis.action.toLowerCase()}">${analysis.action}</span><br>
+      <span class="small">Confidence: ${analysis.confidence}</span>
+    `;
+    lastPrediction = analysis.action;
+    lastPredictedPeriod = currentPeriod;
   }
 
-  predPeriod.innerHTML = currentPrediction
-    ? `📌 For period: ${nextPeriod(history[0].id)}`
-    : "";
+  // 🧾 Result check (only once per period)
+  const resultBox = document.getElementById("resultBox");
+  if(lastPrediction && lastPredictedPeriod !== currentPeriod){
+    const resultColor = colorOf(list[1].number);
+    if(resultColor.includes(lastPrediction.toLowerCase())){
+      wins++;
+      resultBox.innerHTML = `🟢 Last Result: <b class="green">WIN ✅</b>`;
+    } else {
+      losses++;
+      resultBox.innerHTML = `🔴 Last Result: <b class="red">LOSS ❌</b>`;
+    }
+    lastPrediction = null;
+  }
+
+  const total = wins + losses;
+  const acc = total ? Math.round((wins/total)*100) : 0;
+  document.getElementById("statsBox").innerText =
+    `📊 Wins: ${wins} | ❌ Losses: ${losses} | 🎯 Accuracy: ${acc}%`;
+
+  // 📜 History
+  document.getElementById("history").innerHTML =
+    list.slice(0,5).map(i => {
+      const c = colorOf(i.number);
+      const cls = c.includes("green") ? "green" : c.includes("red") ? "red" : "violet";
+      return `<div class="${cls}">🔹 ${i.issueNumber} → ${c}</div>`;
+    }).join("");
 }
 
-function evaluate(){
-  if(!currentPrediction) return;
-
-  let latest = history[0];
-  if(latest.id === lastEvaluatedPeriod) return;
-
-  lastEvaluatedPeriod = latest.id;
-
-  if(latest.color.includes(currentPrediction)) wins++;
-  else losses++;
-
-  updateStats();
-}
-
-function updateStats(){
-  let total = wins + losses;
-  let acc = total ? Math.round((wins/total)*100) : 0;
-  statsEl.innerHTML = `✅ Wins: ${wins} | ❌ Losses: ${losses} | 🎯 Accuracy: ${acc}%`;
-}
-
-// ====== AUTO LOOP (SIMULATED FETCH) ======
-setInterval(()=>{
-  // 🔁 Here later we plug LIVE API
-  evaluate();
-  makePrediction();
-  renderResults();
-},3000);
-
-// INIT
-renderResults();
-makePrediction();
-updateStats();
+tick();
+setInterval(tick, 60000);
 </script>
+
 </body>
 </html>
