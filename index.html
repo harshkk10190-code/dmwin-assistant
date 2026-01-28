@@ -79,10 +79,6 @@ button.danger{
 📜 <b>Lastest Results</b>
 <div id="history"></div>
 </div>
-<div class="card" id="periodBox">
-  ⏳ <b>Period Status</b><br>
-  <span class="small">Syncing...</span>
-</div>
 
 <div class="small center">
 ⚠️ No guarantees • Avoid over-betting • Stay disciplined
@@ -166,16 +162,6 @@ async function tick(){
   const res = await fetch(API);
   const json = await res.json();
   const list = json.data.list;
-  
-  const completed = list[0].issueNumber;
-const betting   = nextIssue(completed);
-
-document.getElementById("periodBox").innerHTML = `
-⏳ <b>Period Status</b><br>
-<span class="small">
-✅ Last settled: ${completed}<br>
-🔒 Betting now: ${betting}
-</span>`;
 
   const completedIssue = list[0].issueNumber;
   const bettingIssue   = nextIssue(completedIssue);
