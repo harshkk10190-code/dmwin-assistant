@@ -62,18 +62,12 @@ button.danger{
 ⏱ <span id="timer">--</span> seconds remaining
 </div>
 
-<div class="card" id="predictionBox">Loading...</div>
-<div class="card" id="resultBox">Waiting for result...</div>
-<div class="card" id="statsBox">...</div>
+<div class="card" id="predictionBox">Loading…</div>
 
-<div class="card">
-  <b>Last Completed Results</b>
-  <div id="history"></div>
-</div>
+<div class="card" id="resultBox">Waiting for result…</div>
 
-<div class="card" id="periodBox">
-  <b>Period Status</b>
-  <span class="small">Syncing...</span>
+<div class="card" id="statsBox">
+📊 Wins: 0 | ❌ Losses: 0 | 🎯 Accuracy: 0%
 </div>
 
 <div class="flex">
@@ -87,9 +81,9 @@ button.danger{
 <div id="history"></div>
 </div>
 
-<div class="card" id="periodBox">
-  ⏳ <b>Period Status</b><br>
-  <span class="small">Syncing...</span>
+<div class="small center">
+⚠️ No guarantees • Avoid over-betting • Stay disciplined<br>
+<span id="footerStatus">🧠 Initializing engine…</span>
 </div>
 
 <div class="small center">
@@ -173,16 +167,6 @@ async function tick(){
   const res = await fetch(API);
   const json = await res.json();
   const list = json.data.list;
-  
-  const completed = list[0].issueNumber;
-const betting   = nextIssue(completed);
-
-document.getElementById("periodBox").innerHTML = `
-⏳ <b>Period Status</b><br>
-<span class="small">
-✅ Last settled: ${completed}<br>
-🔒 Betting now: ${betting}
-</span>`;
 
   const completedIssue = list[0].issueNumber;
   const bettingIssue   = nextIssue(completedIssue);
@@ -230,13 +214,10 @@ document.getElementById("periodBox").innerHTML = `
     }
   }else{
     predictionBox.innerHTML =
-`🔒 <b>Prediction:</b> 
-<span class="${state.lockedPrediction}">
-${state.lockedPrediction.toUpperCase()}
-</span><br>
-<span class="small">
-Locked for period ${state.lockedIssue}
-</span>`;
+      "🔒 <b>Prediction:</b> <span class='" + state.lockedPrediction + "'>" +
+      state.lockedPrediction.toUpperCase() + "</span><br>" +
+      "<span class='small'>Locked for period " + state.lockedIssue + "</span>";
+  }
 
   /* === STATS === */
   const total = state.wins + state.losses;
@@ -280,6 +261,19 @@ function resetHardStop(){
 /* ================= START ================= */
 tick();
 setInterval(tick, 60000);
+/* ===== FOOTER STATUS ROTATION ===== */
+const msgs = [
+  "🧠 Engine running normally",
+  "📡 Live data synchronized",
+  "🔒 Prediction locked per period",
+  "🛡 Risk control active"
+];
+
+let i = 0;
+setInterval(() => {
+  const el = document.getElementById("footerStatus");
+  if (el) el.innerText = msgs[i++ % msgs.length];
+}, 3000);
 </script>
 
 </body>
