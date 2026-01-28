@@ -76,7 +76,7 @@ button.danger{
 </div>
 
 <div class="card">
-📜 <b>Lastest Results</b>
+📜 <b>Lastest Result</b>
 <div id="history"></div>
 </div>
 
@@ -89,7 +89,6 @@ button.danger{
 <script>
 const API =
 "https://draw.ar-lottery01.com/WinGo/WinGo_1M/GetHistoryIssuePage.json?pageNo=1&pageSize=10";
-const history = document.getElementById("history");
 
 /* ================= STATE ================= */
 let state = JSON.parse(localStorage.getItem("dmwin_color_state")) || {
