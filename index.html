@@ -3,20 +3,16 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Kira BKL Smart Assistant – Color Only</title>
+<title>DmWin Smart Assistant – Color Only</title>
 
 <style>
 body{
   margin:0;
-  font-family:system-ui, sans-serif;
+  font-family:system-ui,sans-serif;
   background:linear-gradient(180deg,#050b1f,#0b1535);
   color:#e8ecff;
 }
-.container{
-  max-width:420px;
-  margin:20px auto;
-  padding:16px;
-}
+.container{max-width:420px;margin:20px auto;padding:16px}
 .card{
   background:#0e1a3a;
   border:1px solid #1f3b8f;
@@ -31,6 +27,16 @@ h1{margin:0 0 6px;font-size:20px}
 .violet{color:#c77dff}
 .wait{color:#f1c40f}
 .center{text-align:center}
+button{
+  background:#12225a;
+  border:1px solid #2a4cff;
+  color:#fff;
+  padding:10px 14px;
+  border-radius:10px;
+  margin:6px;
+  font-size:14px;
+}
+button:active{transform:scale(.97)}
 </style>
 </head>
 
@@ -41,21 +47,24 @@ h1{margin:0 0 6px;font-size:20px}
 <div class="small">Education / analysis only</div>
 
 <div class="card">
-  🟢 <b>Status:</b> LIVE<br>
-  ⏱ <span id="timer">--</span> seconds remaining
+🟢 <b>Status:</b> LIVE<br>
+⏱ <span id="timer">--</span>s remaining
 </div>
 
 <div class="card" id="predictionBox">Loading…</div>
 
 <div class="card" id="resultBox">Waiting for result…</div>
 
-<div class="card" id="statsBox">
-  📊 Wins: 0 | ❌ Losses: 0 | 🎯 Accuracy: 0%
+<div class="card" id="statsBox"></div>
+
+<div class="center">
+<button onclick="resetStats()">📊 Reset Stats</button>
+<button onclick="resetHardStop()">🛑 Reset Hard Stop</button>
 </div>
 
 <div class="card">
-  📜 <b>Latest Results</b>
-  <div id="history"></div>
+📜 <b>Latest Results</b>
+<div id="history"></div>
 </div>
 
 <div class="small center">
@@ -65,125 +74,124 @@ h1{margin:0 0 6px;font-size:20px}
 </div>
 
 <script>
-const API =
-"https://draw.ar-lottery01.com/WinGo/WinGo_1M/GetHistoryIssuePage.json?pageNo=1&pageSize=10";
+const API="https://draw.ar-lottery01.com/WinGo/WinGo_1M/GetHistoryIssuePage.json?pageNo=1&pageSize=20";
 
-/* ===== STATE (refresh-safe) ===== */
-let state = JSON.parse(localStorage.getItem("dmwin_color_state")) || {
+let state=JSON.parse(localStorage.getItem("dmwin_state"))||{
   wins:0,
   losses:0,
+  lossStreak:0,
   lastBet:null,
-  lastBetPeriod:null,
-  lastSettledPeriod:null,
-  lossStreak:0
+  lastProcessedIssue:null,
+  hardStop:false
 };
 
-function saveState(){
-  localStorage.setItem("dmwin_color_state",JSON.stringify(state));
-}
+function save(){localStorage.setItem("dmwin_state",JSON.stringify(state));}
 
-/* ===== COLOR LOGIC (CORRECT) ===== */
 function colorOf(n){
-  n = Number(n);
-  if(n === 0) return "red,violet";
-  if(n === 5) return "green,violet";
-  return n % 2 === 0 ? "red" : "green";
+  n=Number(n);
+  if(n===0) return "red,violet";
+  if(n===5) return "green,violet";
+  return n%2===0?"red":"green";
 }
 
-/* ===== ANALYSIS (NOT OVER-WAIT) ===== */
 function analyze(list){
-  const last6 = list.slice(0,6).map(i=>colorOf(i.number));
+  if(state.hardStop) return {action:"WAIT",reason:"Hard stop active"};
 
-  const green = last6.filter(c=>c.includes("green")).length;
-  const red   = last6.filter(c=>c.includes("red")).length;
-  const violet = last6.filter(c=>c.includes("violet")).length;
+  const last6=list.slice(0,6).map(i=>colorOf(i.number));
+  let g=0,r=0,v=0;
 
-  if(violet >= 3) return {action:"WAIT", reason:"High violet risk"};
+  last6.forEach(c=>{
+    if(c.includes("green")) g++;
+    if(c.includes("red")) r++;
+    if(c.includes("violet")) v++;
+  });
 
-  if(state.lossStreak >= 2)
-    return {action:"WAIT", reason:"Cooldown after losses"};
+  if(v>=3) return {action:"WAIT",reason:"High violet risk"};
 
-  let pick = green > red ? "GREEN" : "RED";
-  let confidence = Math.round((Math.max(green,red)/6)*100);
+  let pick=g>r?"GREEN":"RED";
+  let confidence=Math.round((Math.max(g,r)/6)*100);
 
-  if(Math.abs(green-red) <= 1)
-    return {action:"WAIT", reason:"No clear bias"};
+  // Anti-streak logic
+  if(state.lossStreak===1){
+    pick=state.lastBet==="green"?"RED":"GREEN";
+    confidence-=10;
+  }
 
-  return {action:pick, confidence};
+  if(state.lossStreak>=2){
+    return {action:"WAIT",reason:"Cooldown after losses"};
+  }
+
+  return {action:pick,confidence};
 }
 
-/* ===== MAIN LOOP ===== */
 async function tick(){
-  const res = await fetch(API);
-  const json = await res.json();
-  const list = json.data.list;
+  const res=await fetch(API);
+  const json=await res.json();
+  const list=json.data.list;
+  const currentIssue=list[0].issueNumber;
+  const latestColor=colorOf(list[0].number);
 
-  const latestPeriod = list[0].issueNumber;
-  const latestColor = colorOf(list[0].number);
-
-  /* ===== SETTLE RESULT (ONCE ONLY) ===== */
-  if(
-    state.lastBet &&
-    state.lastBetPeriod &&
-    state.lastSettledPeriod !== latestPeriod
-  ){
+  // RESULT CHECK (ONCE PER ISSUE)
+  if(state.lastBet && state.lastProcessedIssue!==currentIssue){
     if(latestColor.includes(state.lastBet)){
       state.wins++;
-      state.lossStreak = 0;
-      document.getElementById("resultBox").innerHTML =
-        "✅ Last Bet: <span class='green'>WIN</span>";
+      state.lossStreak=0;
+      resultBox.innerHTML="✅ Last Bet: <span class='green'>WIN</span>";
     }else{
       state.losses++;
       state.lossStreak++;
-      document.getElementById("resultBox").innerHTML =
-        "❌ Last Bet: <span class='red'>LOSS</span>";
+      resultBox.innerHTML="❌ Last Bet: <span class='red'>LOSS</span>";
+      if(state.lossStreak>=3) state.hardStop=true;
     }
-
-    state.lastSettledPeriod = latestPeriod;
-    state.lastBet = null;
-    state.lastBetPeriod = null;
-    saveState();
+    state.lastBet=null;
+    state.lastProcessedIssue=currentIssue;
+    save();
   }
 
-  /* ===== PREDICTION ===== */
-  const decision = analyze(list);
-  const box = document.getElementById("predictionBox");
-
-  if(decision.action === "WAIT"){
-    box.innerHTML =
-      "⏸ <b>Prediction:</b> <span class='wait'>WAIT</span><br>" +
-      "<span class='small'>"+decision.reason+"</span>";
+  const d=analyze(list);
+  if(d.action==="WAIT"){
+    predictionBox.innerHTML=
+      "⏸ <b>Prediction:</b> <span class='wait'>WAIT</span><br>"+
+      "<span class='small'>"+d.reason+"</span>";
   }else{
-    box.innerHTML =
-      "🎯 <b>Prediction:</b> <span class='"+decision.action.toLowerCase()+"'>" +
-      decision.action+"</span><br>" +
-      "<span class='small'>Confidence: "+decision.confidence+"%</span>";
-
-    state.lastBet = decision.action.toLowerCase();
-    state.lastBetPeriod = latestPeriod;
-    saveState();
+    predictionBox.innerHTML=
+      "🎯 <b>Prediction:</b> "+
+      "<span class='"+d.action.toLowerCase()+"'>"+d.action+"</span><br>"+
+      "<span class='small'>Confidence: "+d.confidence+"%</span>";
+    state.lastBet=d.action.toLowerCase();
+    save();
   }
 
-  /* ===== STATS ===== */
-  const total = state.wins + state.losses;
-  const acc = total ? Math.round((state.wins/total)*100) : 0;
-  document.getElementById("statsBox").innerText =
+  const total=state.wins+state.losses;
+  const acc=total?Math.round((state.wins/total)*100):0;
+  statsBox.innerHTML=
     `📊 Wins: ${state.wins} | ❌ Losses: ${state.losses} | 🎯 Accuracy: ${acc}%`;
 
-  /* ===== HISTORY ===== */
-  document.getElementById("history").innerHTML =
-    list.slice(0,5).map(i=>{
-      const c = colorOf(i.number);
-      const cls = c.includes("green") ? "green" :
-                  c.includes("red") ? "red" : "violet";
-      return `<div class="${cls}">${i.issueNumber} → ${c}</div>`;
-    }).join("");
+  history.innerHTML=list.slice(0,5).map(i=>{
+    let c=colorOf(i.number);
+    let cls=c.includes("green")?"green":"red";
+    if(c.includes("violet")) cls="violet";
+    return `<div class="${cls}">${i.issueNumber} → ${c}</div>`;
+  }).join("");
 }
 
-/* ===== REAL TIMER ===== */
+function resetStats(){
+  state.wins=0;
+  state.losses=0;
+  save();
+  alert("Stats reset");
+}
+
+function resetHardStop(){
+  state.hardStop=false;
+  state.lossStreak=0;
+  save();
+  alert("Hard stop cleared");
+}
+
+// TIMER
 setInterval(()=>{
-  document.getElementById("timer").innerText =
-    60 - new Date().getSeconds();
+  document.getElementById("timer").innerText=60-new Date().getSeconds();
 },500);
 
 tick();
