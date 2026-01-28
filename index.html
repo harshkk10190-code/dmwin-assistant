@@ -31,7 +31,6 @@ h1{margin:0 0 6px;font-size:20px}
 .violet{color:#c77dff}
 .wait{color:#f1c40f}
 .center{text-align:center}
-
 button{
   background:#142b6f;
   border:1px solid #2f55d4;
@@ -55,7 +54,7 @@ button.danger{
 <body>
 <div class="container">
 
-<h1>🧠 Kira Bkl Smart Assistant</h1>
+<h1>🧠 DmWin Smart Assistant</h1>
 <div class="small">Education / analysis only</div>
 
 <div class="card">
@@ -72,8 +71,8 @@ button.danger{
 </div>
 
 <div class="flex">
-<button onclick="resetStats()">📊 Reset Stats</button>
-<button class="danger" onclick="resetHardStop()">🛑 Reset Hard Stop</button>
+  <button onclick="resetStats()">📊 Reset Stats</button>
+  <button class="danger" onclick="resetHardStop()">🛑 Reset Hard Stop</button>
 </div>
 
 <div class="card">
@@ -92,7 +91,7 @@ const API =
 "https://draw.ar-lottery01.com/WinGo/WinGo_1M/GetHistoryIssuePage.json?pageNo=1&pageSize=10";
 
 /* ================= STATE ================= */
-let state = JSON.parse(localStorage.getItem("dmwin_state")) || {
+let state = JSON.parse(localStorage.getItem("dmwin_color_state")) || {
   wins:0,
   losses:0,
   lossStreak:0,
@@ -103,21 +102,28 @@ let state = JSON.parse(localStorage.getItem("dmwin_state")) || {
 };
 
 function save(){
-  localStorage.setItem("dmwin_state",JSON.stringify(state));
+  localStorage.setItem("dmwin_color_state",JSON.stringify(state));
 }
 
 /* ================= HELPERS ================= */
 function colorOf(n){
   n = Number(n);
-  if(n===0) return ["red","violet"];
-  if(n===5) return ["green","violet"];
-  return n%2===0 ? ["red"] : ["green"];
+  if(n === 0) return "red,violet";
+  if(n === 5) return "green,violet";
+  return n % 2 === 0 ? "red" : "green";
+}
+
+function nextIssue(issue){
+  const base = issue.slice(0,-2);
+  const num  = Number(issue.slice(-2)) + 1;
+  return base + String(num).padStart(2,"0");
 }
 
 /* ================= AI CORE ================= */
 function analyze(list){
-  if(state.hardStop)
-    return {action:"WAIT",reason:"Hard stop active"};
+  if(state.hardStop){
+    return {action:"WAIT", reason:"Hard stop active"};
+  }
 
   const last6 = list.slice(0,6);
   let green=0, red=0, violet=0;
@@ -129,22 +135,24 @@ function analyze(list){
     if(c.includes("violet")) violet++;
   });
 
-  if(violet >= 2)
-    return {action:"WAIT",reason:"High violet risk"};
+  if(violet >= 2){
+    return {action:"WAIT", reason:"High violet risk"};
+  }
 
   if(state.lossStreak >= 3){
     state.hardStop = true;
     save();
-    return {action:"WAIT",reason:"Hard stop (3 losses)"};
+    return {action:"WAIT", reason:"Hard stop (3 losses)"};
   }
 
   let pick = green > red ? "GREEN" : "RED";
-  let confidence = Math.round((Math.max(green,red)/6)*100);
+  let confidence = Math.round((Math.max(green,red) / 6) * 100);
 
-  if(confidence < 45)
-    return {action:"WAIT",reason:"Low confidence"};
+  if(confidence < 45){
+    return {action:"WAIT", reason:"Low confidence"};
+  }
 
-  return {action:pick,confidence};
+  return {action:pick, confidence};
 }
 
 /* ================= MAIN LOOP ================= */
@@ -153,66 +161,68 @@ async function tick(){
   const json = await res.json();
   const list = json.data.list;
 
-  const bettingIssue = String(Number(list[0].issueNumber) + 1);
   const completedIssue = list[0].issueNumber;
-  const completedColors = colorOf(list[0].number);
+  const bettingIssue   = nextIssue(completedIssue);
+  const latestColors   = colorOf(list[0].number);
 
-  /* ===== RESULT CHECK (ONCE ONLY) ===== */
+  /* === RESULT CHECK (ONLY ONCE) === */
   if(
-    state.lockedIssue &&
     state.lockedIssue === completedIssue &&
     state.evaluatedIssue !== completedIssue
   ){
-    if(completedColors.includes(state.lockedPrediction)){
+    if(latestColors.includes(state.lockedPrediction)){
       state.wins++;
       state.lossStreak = 0;
-      resultBox.innerHTML = "✅ Last Bet: <span class='green'>WIN</span>";
+      resultBox.innerHTML =
+        "✅ Last Bet: <span class='green'>WIN</span>";
     }else{
       state.losses++;
       state.lossStreak++;
-      resultBox.innerHTML = "❌ Last Bet: <span class='red'>LOSS</span>";
+      resultBox.innerHTML =
+        "❌ Last Bet: <span class='red'>LOSS</span>";
     }
+
     state.evaluatedIssue = completedIssue;
     save();
   }
 
-  /* ===== PREDICTION LOCK ===== */
+  /* === PREDICTION LOCK === */
   if(state.lockedIssue !== bettingIssue){
     const d = analyze(list);
+
     if(d.action === "WAIT"){
-      state.lockedPrediction = null;
       predictionBox.innerHTML =
-        "⏸ <b>Prediction:</b> <span class='wait'>WAIT</span><br>"+
-        "<span class='small'>"+d.reason+"</span>";
+        "⏸ <b>Prediction:</b> <span class='wait'>WAIT</span><br>" +
+        "<span class='small'>" + d.reason + "</span>";
     }else{
       state.lockedIssue = bettingIssue;
       state.lockedPrediction = d.action.toLowerCase();
-      predictionBox.innerHTML =
-        "🎯 <b>Prediction:</b> <span class='"+state.lockedPrediction+"'>"+
-        d.action+"</span><br>"+
-        "<span class='small'>Confidence: "+d.confidence+
-        "% • Locked for period "+bettingIssue+"</span>";
       save();
+
+      predictionBox.innerHTML =
+        "🎯 <b>Prediction:</b> <span class='" + d.action.toLowerCase() + "'>" +
+        d.action + "</span><br>" +
+        "<span class='small'>Locked for period " + bettingIssue +
+        " • Confidence: " + d.confidence + "%</span>";
     }
-  }else if(state.lockedPrediction){
+  }else{
     predictionBox.innerHTML =
-      "🎯 <b>Prediction:</b> <span class='"+state.lockedPrediction+"'>"+
-      state.lockedPrediction.toUpperCase()+"</span><br>"+
-      "<span class='small'>Locked for period "+state.lockedIssue+"</span>";
+      "🔒 <b>Prediction:</b> <span class='" + state.lockedPrediction + "'>" +
+      state.lockedPrediction.toUpperCase() + "</span><br>" +
+      "<span class='small'>Locked for period " + state.lockedIssue + "</span>";
   }
 
-  /* ===== STATS ===== */
+  /* === STATS === */
   const total = state.wins + state.losses;
-  const acc = total ? Math.round((state.wins/total)*100) : 0;
+  const acc   = total ? Math.round((state.wins / total) * 100) : 0;
   statsBox.innerText =
     `📊 Wins: ${state.wins} | ❌ Losses: ${state.losses} | 🎯 Accuracy: ${acc}%`;
 
-  /* ===== LATEST RESULTS (FIXED) ===== */
+  /* === LATEST RESULTS (COMPLETED ONLY) === */
   history.innerHTML = list.slice(0,5).map(i=>{
-    const colors = colorOf(i.number).map(c =>
-      `<span class="${c}" style="margin-right:4px">${c}</span>`
-    ).join("+ ");
-    return `<div style="margin-bottom:4px">${i.issueNumber} → ${colors}</div>`;
+    const parts = colorOf(i.number).split(",");
+    const html = parts.map(p=>`<span class="${p}">${p}</span>`).join(" + ");
+    return `<div>${i.issueNumber} → ${html}</div>`;
   }).join("");
 }
 
@@ -227,6 +237,8 @@ function resetStats(){
   state.wins = 0;
   state.losses = 0;
   state.lossStreak = 0;
+  state.lockedIssue = null;
+  state.lockedPrediction = null;
   state.evaluatedIssue = null;
   save();
   location.reload();
@@ -241,7 +253,7 @@ function resetHardStop(){
 
 /* ================= START ================= */
 tick();
-setInterval(tick,60000);
+setInterval(tick, 60000);
 </script>
 
 </body>
