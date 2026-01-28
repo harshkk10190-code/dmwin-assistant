@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>🧠 DmWin Smart Assistant</title>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>DmWin Smart Assistant</title>
 
 <style>
 body{
@@ -24,13 +24,15 @@ body{
   padding:14px;
   margin-bottom:14px;
 }
-h1{margin:0 0 6px;font-size:22px}
+h1{font-size:20px;margin:0}
 .small{opacity:.7;font-size:13px}
-
 .green{color:#2ecc71}
 .red{color:#ff4d4d}
 .violet{color:#c77dff}
 .wait{color:#f1c40f}
+.big{color:#3498db}
+.smallTxt{color:#f39c12}
+hr{border:none;border-top:1px solid #1f3b8f;margin:10px 0}
 </style>
 </head>
 
@@ -41,14 +43,15 @@ h1{margin:0 0 6px;font-size:22px}
 <div class="small">📘 Education / analysis only</div>
 
 <div class="card">
-🟢 <b>Status:</b> LIVE<br>
-⏳ <span id="timer">Syncing…</span>
+  🟢 <b>Status:</b> <span class="green">LIVE</span><br>
+  🔄 <span class="small">Manual refresh • Auto fetch every 60s</span>
 </div>
 
-<div class="card" id="colorBox">Loading Color AI…</div>
-<div class="card" id="sizeBox">Loading Big/Small AI…</div>
+<div class="card" id="predictionBox">⏳ Loading prediction…</div>
 
-<div class="card" id="resultBox">Waiting for result…</div>
+<div class="card" id="bigSmallBox">⏳ Loading Big/Small…</div>
+
+<div class="card" id="resultBox">⌛ Waiting for result…</div>
 
 <div class="card" id="statsBox">
 📊 Wins: 0 | ❌ Losses: 0 | 🎯 Accuracy: 0%
@@ -56,12 +59,10 @@ h1{margin:0 0 6px;font-size:22px}
 
 <div class="card">
 📜 <b>Latest Results</b>
-<div id="history"></div>
+<div id="history" class="small">Loading…</div>
 </div>
 
-<div class="small">
-⚠️ No guarantees • Avoid over betting • Stay disciplined
-</div>
+<div class="small">⚠️ No guarantees • Avoid over betting • Stay disciplined</div>
 
 </div>
 
@@ -73,110 +74,111 @@ let lastPrediction = null;
 let lastPeriodChecked = null;
 let wins = 0, losses = 0;
 
-// ⏱ Countdown synced to clock
-setInterval(()=>{
-  const s = new Date().getSeconds();
-  document.getElementById("timer").innerText =
-    `⏳ ${60 - s}s remaining`;
-},1000);
-
-// 🎨 Color logic
+// COLOR MAP
 function colorOf(n){
-  if(n===0 || n===5) return "violet";
-  return n%2===0 ? "red" : "green";
+  n = Number(n);
+  if(n === 0) return "red,violet";
+  if(n === 5) return "green,violet";
+  return n % 2 === 0 ? "red" : "green";
 }
 
-// 📐 Size logic
+// BIG / SMALL
 function sizeOf(n){
-  return n <= 4 ? "SMALL" : "BIG";
+  n = Number(n);
+  return n >= 5 ? "BIG" : "SMALL";
 }
 
-// 🧠 Color AI
-function colorAI(list){
-  let g=0, r=0, v=0;
+// COLOR AI
+function analyzeColor(list){
+  const colors = list.map(i => colorOf(i.number));
+  const pure = colors.filter(c=>!c.includes("violet"));
 
-  list.slice(0,8).forEach((i,idx)=>{
-    const w = 8-idx;
-    const c = colorOf(i.number);
-    if(c==="green") g+=w;
-    if(c==="red") r+=w;
-    if(c==="violet") v++;
-  });
+  const g = pure.filter(c=>c==="green").length;
+  const r = pure.filter(c=>c==="red").length;
+  const v = colors.filter(c=>c.includes("violet")).length;
 
-  const confidence = Math.abs(g-r)*8;
+  if(v >= 2) return {action:"WAIT", confidence:0, reason:"Violet risk high"};
+  if(Math.abs(g-r) <= 1) return {action:"WAIT", confidence:30, reason:"Low bias"};
 
-  if(v>=2) return {action:"WAIT",reason:"Violet risk"};
-  if(confidence < 50) return {action:"WAIT",reason:"Low confidence"};
-
-  return g>r
-    ? {action:"GREEN",confidence}
-    : {action:"RED",confidence};
+  return {
+    action: g > r ? "GREEN" : "RED",
+    confidence: Math.min(90, 50 + Math.abs(g-r)*10)
+  };
 }
 
-// 📐 Big/Small AI
-function sizeAI(list){
-  let big=0, small=0;
-  list.slice(0,6).forEach(i=>{
-    sizeOf(i.number)==="BIG" ? big++ : small++;
-  });
+// BIG SMALL AI
+function analyzeSize(list){
+  const sizes = list.map(i => sizeOf(i.number));
+  const big = sizes.filter(s=>s==="BIG").length;
+  const small = sizes.filter(s=>s==="SMALL").length;
 
-  if(big>=4) return "SMALL";
-  if(small>=4) return "BIG";
-  return "WAIT";
+  if(Math.abs(big-small) <= 1) return "WAIT";
+  return big > small ? "BIG" : "SMALL";
 }
 
 async function tick(){
   const res = await fetch(API);
   const json = await res.json();
   const list = json.data.list;
+  if(!list || !list.length) return;
 
   const latest = list[0];
   const latestColor = colorOf(latest.number);
 
-  // COLOR AI
-  const c = colorAI(list);
-  if(c.action==="WAIT"){
-    colorBox.innerHTML =
-      `🎯 <b>Color AI:</b> <span class="wait">WAIT</span><br>
-       <span class="small">⚠️ ${c.reason}</span>`;
+  // COLOR PREDICTION
+  const c = analyzeColor(list);
+  const pBox = document.getElementById("predictionBox");
+
+  if(c.action === "WAIT"){
+    pBox.innerHTML = `
+      🎯 <b>Color AI:</b> <span class="wait">WAIT</span><br>
+      ⚠️ <span class="small">${c.reason}</span>
+    `;
     lastPrediction = null;
-  } else {
-    colorBox.innerHTML =
-      `🎯 <b>Color AI:</b>
-       <span class="${c.action.toLowerCase()}">${c.action}</span><br>
-       🔥 Confidence: ${c.confidence}%`;
+  }else{
+    pBox.innerHTML = `
+      🎯 <b>Color AI:</b>
+      <span class="${c.action.toLowerCase()}">${c.action}</span><br>
+      🔥 Confidence: ${c.confidence}%
+    `;
     lastPrediction = c.action;
   }
 
-  // BIG / SMALL
-  const s = sizeAI(list);
-  sizeBox.innerHTML =
-    `📐 <b>Big/Small AI:</b> ${s==="WAIT"
-      ? '<span class="wait">WAIT</span>'
-      : '<b>'+s+'</b>'}`;
+  // BIG SMALL
+  const bs = analyzeSize(list);
+  document.getElementById("bigSmallBox").innerHTML = `
+    📐 <b>Big/Small AI:</b>
+    <span class="${bs==="BIG"?"big":bs==="SMALL"?"smallTxt":"wait"}">${bs}</span>
+  `;
 
-  // ✅ WIN / LOSS (only once per new period)
-  if(lastPeriodChecked !== latest.issueNumber && lastPrediction){
-    if(latestColor === lastPrediction.toLowerCase()){
-      wins++;
-      resultBox.innerHTML = `✅ Result: <span class="green">WIN</span>`;
-    } else {
-      losses++;
-      resultBox.innerHTML = `❌ Result: <span class="red">LOSS</span>`;
+  // RESULT CHECK (ONCE PER PERIOD)
+  const rBox = document.getElementById("resultBox");
+  if(lastPeriodChecked !== latest.issueNumber){
+    if(!lastPrediction){
+      rBox.innerHTML = `⏸️ No bet placed (WAIT)`;
+    }else{
+      if(latestColor.includes(lastPrediction.toLowerCase())){
+        wins++;
+        rBox.innerHTML = `✅ Result: <span class="green">WIN</span>`;
+      }else{
+        losses++;
+        rBox.innerHTML = `❌ Result: <span class="red">LOSS</span>`;
+      }
     }
     lastPeriodChecked = latest.issueNumber;
   }
 
+  // STATS
   const total = wins + losses;
   const acc = total ? Math.round((wins/total)*100) : 0;
-  statsBox.innerHTML =
+  document.getElementById("statsBox").innerHTML =
     `📊 Wins: ${wins} | ❌ Losses: ${losses} | 🎯 Accuracy: ${acc}%`;
 
-  // 📜 HISTORY
-  history.innerHTML =
+  // HISTORY
+  document.getElementById("history").innerHTML =
     list.slice(0,5).map(i=>{
       const c = colorOf(i.number);
-      return `<div class="${c}">
+      return `<div class="${c.includes("green")?"green":c.includes("red")?"red":"violet"}">
         ${i.issueNumber} → ${c}
       </div>`;
     }).join("");
