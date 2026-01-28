@@ -76,14 +76,8 @@ button.danger{
 </div>
 
 <div class="card">
-📜 <b>Last Completed Results</b>
-<div class="small">Only settled & confirmed rounds</div>
+📜 <b>Lastest Results</b>
 <div id="history"></div>
-</div>
-
-<div class="small center">
-⚠️ No guarantees • Avoid over-betting • Stay disciplined<br>
-<span id="footerStatus">🧠 Initializing engine…</span>
 </div>
 
 <div class="small center">
@@ -261,19 +255,6 @@ function resetHardStop(){
 /* ================= START ================= */
 tick();
 setInterval(tick, 60000);
-/* ===== FOOTER STATUS ROTATION ===== */
-const msgs = [
-  "🧠 Engine running normally",
-  "📡 Live data synchronized",
-  "🔒 Prediction locked per period",
-  "🛡 Risk control active"
-];
-
-let i = 0;
-setInterval(() => {
-  const el = document.getElementById("footerStatus");
-  if (el) el.innerText = msgs[i++ % msgs.length];
-}, 3000);
 </script>
 
 </body>
