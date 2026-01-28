@@ -76,7 +76,7 @@ button.danger{
 </div>
 
 <div class="card">
-📜 <b>Play 2x After Losing - Kira</b>
+📜 <b>Lastest Results</b>
 <div id="history"></div>
 </div>
 
@@ -219,11 +219,11 @@ async function tick(){
     `📊 Wins: ${state.wins} | ❌ Losses: ${state.losses} | 🎯 Accuracy: ${acc}%`;
 
   /* === LATEST RESULTS (COMPLETED ONLY) === */
-  history.innerHTML = list.slice(0,5).map(i=>{
-    const parts = colorOf(i.number).split(",");
-    const html = parts.map(p=>`<span class="${p}">${p}</span>`).join(" + ");
-    return `<div>${i.issueNumber} → ${html}</div>`;
-  }).join("");
+  history.innerHTML = list.slice(1,6).map(i=>{
+  const parts = colorOf(i.number).split(",");
+  const html = parts.map(p=>`<span class="${p}">${p}</span>`).join(" + ");
+  return `<div>${i.issueNumber} → ${html}</div>`;
+}).join("");
 }
 
 /* ================= TIMER ================= */
