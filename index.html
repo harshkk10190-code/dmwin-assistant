@@ -42,15 +42,21 @@ h1{margin:0 0 6px;font-size:22px}
 
 <div class="card">
 🟢 <b>Status:</b> LIVE<br>
-⏱ <span id="timer">Syncing time…</span>
+⏳ <span id="timer">Syncing…</span>
 </div>
 
-<div class="card" id="colorBox">
-🎯 Color AI loading…
+<div class="card" id="colorBox">Loading Color AI…</div>
+<div class="card" id="sizeBox">Loading Big/Small AI…</div>
+
+<div class="card" id="resultBox">Waiting for result…</div>
+
+<div class="card" id="statsBox">
+📊 Wins: 0 | ❌ Losses: 0 | 🎯 Accuracy: 0%
 </div>
 
-<div class="card" id="sizeBox">
-📐 Big/Small AI loading…
+<div class="card">
+📜 <b>Latest Results</b>
+<div id="history"></div>
 </div>
 
 <div class="small">
@@ -63,30 +69,34 @@ h1{margin:0 0 6px;font-size:22px}
 const API =
 "https://draw.ar-lottery01.com/WinGo/WinGo_1M/GetHistoryIssuePage.json?pageNo=1&pageSize=20";
 
-// ⏱ CLOCK SYNC
+let lastPrediction = null;
+let lastPeriodChecked = null;
+let wins = 0, losses = 0;
+
+// ⏱ Countdown synced to clock
 setInterval(()=>{
-  const sec = new Date().getSeconds();
+  const s = new Date().getSeconds();
   document.getElementById("timer").innerText =
-    `⏳ ${60 - sec}s remaining`;
+    `⏳ ${60 - s}s remaining`;
 },1000);
 
-// 🎨 COLOR LOGIC
+// 🎨 Color logic
 function colorOf(n){
   if(n===0 || n===5) return "violet";
   return n%2===0 ? "red" : "green";
 }
 
-// 📐 SIZE LOGIC
+// 📐 Size logic
 function sizeOf(n){
-  return n <= 4 ? "small" : "big";
+  return n <= 4 ? "SMALL" : "BIG";
 }
 
-// 🎯 COLOR AI
+// 🧠 Color AI
 function colorAI(list){
   let g=0, r=0, v=0;
 
   list.slice(0,8).forEach((i,idx)=>{
-    const w = 8 - idx;
+    const w = 8-idx;
     const c = colorOf(i.number);
     if(c==="green") g+=w;
     if(c==="red") r+=w;
@@ -96,19 +106,18 @@ function colorAI(list){
   const confidence = Math.abs(g-r)*8;
 
   if(v>=2) return {action:"WAIT",reason:"Violet risk"};
-  if(g>=28 || r>=28) return {action:"WAIT",reason:"Strong streak"};
-  if(confidence<60) return {action:"WAIT",reason:"Low confidence"};
+  if(confidence < 50) return {action:"WAIT",reason:"Low confidence"};
 
   return g>r
     ? {action:"GREEN",confidence}
     : {action:"RED",confidence};
 }
 
-// 📐 BIG / SMALL AI
+// 📐 Big/Small AI
 function sizeAI(list){
   let big=0, small=0;
   list.slice(0,6).forEach(i=>{
-    sizeOf(i.number)==="big" ? big++ : small++;
+    sizeOf(i.number)==="BIG" ? big++ : small++;
   });
 
   if(big>=4) return "SMALL";
@@ -121,22 +130,56 @@ async function tick(){
   const json = await res.json();
   const list = json.data.list;
 
+  const latest = list[0];
+  const latestColor = colorOf(latest.number);
+
   // COLOR AI
   const c = colorAI(list);
-  colorBox.innerHTML =
-    c.action==="WAIT"
-    ? `🎯 <b>Color AI:</b> <span class="wait">WAIT</span><br>
-       <span class="small">⚠️ ${c.reason}</span>`
-    : `🎯 <b>Color AI:</b>
+  if(c.action==="WAIT"){
+    colorBox.innerHTML =
+      `🎯 <b>Color AI:</b> <span class="wait">WAIT</span><br>
+       <span class="small">⚠️ ${c.reason}</span>`;
+    lastPrediction = null;
+  } else {
+    colorBox.innerHTML =
+      `🎯 <b>Color AI:</b>
        <span class="${c.action.toLowerCase()}">${c.action}</span><br>
        🔥 Confidence: ${c.confidence}%`;
+    lastPrediction = c.action;
+  }
 
-  // SIZE AI
+  // BIG / SMALL
   const s = sizeAI(list);
   sizeBox.innerHTML =
-    s==="WAIT"
-    ? `📐 <b>Big/Small AI:</b> <span class="wait">WAIT</span>`
-    : `📐 <b>Big/Small AI:</b> <b>${s}</b>`;
+    `📐 <b>Big/Small AI:</b> ${s==="WAIT"
+      ? '<span class="wait">WAIT</span>'
+      : '<b>'+s+'</b>'}`;
+
+  // ✅ WIN / LOSS (only once per new period)
+  if(lastPeriodChecked !== latest.issueNumber && lastPrediction){
+    if(latestColor === lastPrediction.toLowerCase()){
+      wins++;
+      resultBox.innerHTML = `✅ Result: <span class="green">WIN</span>`;
+    } else {
+      losses++;
+      resultBox.innerHTML = `❌ Result: <span class="red">LOSS</span>`;
+    }
+    lastPeriodChecked = latest.issueNumber;
+  }
+
+  const total = wins + losses;
+  const acc = total ? Math.round((wins/total)*100) : 0;
+  statsBox.innerHTML =
+    `📊 Wins: ${wins} | ❌ Losses: ${losses} | 🎯 Accuracy: ${acc}%`;
+
+  // 📜 HISTORY
+  history.innerHTML =
+    list.slice(0,5).map(i=>{
+      const c = colorOf(i.number);
+      return `<div class="${c}">
+        ${i.issueNumber} → ${c}
+      </div>`;
+    }).join("");
 }
 
 tick();
