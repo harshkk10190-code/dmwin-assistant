@@ -1,209 +1,166 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>🧠 DmWin Color Assistant</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta charset="UTF-8">
+<title>🧠 DmWin Color Assistant</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <style>
-    body {
-      margin: 0;
-      font-family: Arial, sans-serif;
-      background: linear-gradient(180deg, #020617, #020024);
-      color: #e5e7eb;
-    }
-
-    .container {
-      max-width: 420px;
-      margin: auto;
-      padding: 16px;
-    }
-
-    h1 {
-      font-size: 22px;
-      margin-bottom: 4px;
-    }
-
-    .sub {
-      font-size: 13px;
-      opacity: 0.7;
-      margin-bottom: 14px;
-    }
-
-    .box {
-      background: rgba(255,255,255,0.04);
-      border: 1px solid #1e3a8a;
-      border-radius: 14px;
-      padding: 14px;
-      margin-bottom: 14px;
-      box-shadow: 0 0 14px rgba(0,0,0,0.4);
-    }
-
-    .status {
-      font-weight: bold;
-      color: #22c55e;
-    }
-
-    .prediction {
-      font-size: 18px;
-      margin-top: 6px;
-    }
-
-    .wait {
-      color: #facc15;
-    }
-
-    .lock {
-      color: #fb7185;
-    }
-
-    .green { color: #22c55e; }
-    .red { color: #ef4444; }
-    .violet { color: #c084fc; }
-
-    ul {
-      padding-left: 18px;
-      margin: 8px 0 0;
-    }
-
-    li {
-      font-size: 14px;
-      margin-bottom: 4px;
-    }
-
-    .stats {
-      font-size: 14px;
-      margin-top: 6px;
-    }
-
-    .footer {
-      font-size: 12px;
-      opacity: 0.5;
-      margin-top: 20px;
-      text-align: center;
-    }
-  </style>
+<style>
+body {
+  margin:0;
+  font-family: Arial, sans-serif;
+  background: linear-gradient(180deg,#020617,#020024);
+  color:#e5e7eb;
+}
+.container {
+  max-width:420px;
+  margin:auto;
+  padding:16px;
+}
+.box {
+  background:rgba(255,255,255,0.05);
+  border:1px solid #1e3a8a;
+  border-radius:14px;
+  padding:14px;
+  margin-bottom:14px;
+}
+.green{color:#22c55e}
+.red{color:#ef4444}
+.violet{color:#c084fc}
+.wait{color:#facc15}
+.lock{color:#fb7185}
+.small{font-size:13px;opacity:.7}
+h1{font-size:22px;margin-bottom:6px}
+ul{padding-left:18px}
+li{font-size:14px;margin-bottom:4px}
+.footer{font-size:12px;opacity:.5;text-align:center;margin-top:16px}
+</style>
 </head>
 
 <body>
-  <div class="container">
+<div class="container">
 
-    <h1>🧠 DmWin Color Assistant</h1>
-    <div class="sub">📚 Education / analysis only</div>
+<h1>🧠 DmWin Color Assistant</h1>
+<div class="small">📚 Education / analysis only</div>
 
-    <div class="box">
-      🚦 Status: <span class="status">LIVE</span><br>
-      ⏱️ Auto refresh every <b>60 seconds</b>
-    </div>
+<div class="box">
+🚦 Status: <b class="green">LIVE</b><br>
+🔄 Auto sync by period
+</div>
 
-    <div class="box">
-      🎯 <b>Prediction</b>
-      <div id="prediction" class="prediction wait">WAIT ⏳</div>
-      <div id="biasText" class="sub">⚠️ Violet risk high</div>
-    </div>
+<div class="box">
+🎯 <b>Prediction</b><br>
+<div id="predText" class="wait">WAIT ⏳</div>
+<div id="predPeriod" class="small"></div>
+⚠️ Violet risk high
+</div>
 
-    <div class="box">
-      📊 <b>Stats</b>
-      <div class="stats" id="stats">
-        ✅ Wins: 0 | ❌ Losses: 0 | 🎯 Accuracy: 0%
-      </div>
-    </div>
+<div class="box">
+📊 <b>Stats</b><br>
+<div id="stats">✅ Wins: 0 | ❌ Losses: 0 | 🎯 Accuracy: 0%</div>
+</div>
 
-    <div class="box">
-      🧾 <b>Latest Results</b>
-      <ul id="results"></ul>
-    </div>
+<div class="box">
+🧾 <b>Latest Results</b>
+<ul id="results"></ul>
+</div>
 
-    <div class="footer">
-      ⚠️ No guarantees • Avoid over betting • Stay disciplined
-    </div>
+<div class="footer">
+⚠️ No guarantees • Avoid over betting • Stay disciplined
+</div>
 
-  </div>
+</div>
 
 <script>
-  // ====== MOCK DATA (replace later with API if needed) ======
-  let history = [
-    { id: "20260128100010621", color: "red" },
-    { id: "20260128100010620", color: "green" },
-    { id: "20260128100010619", color: "green" },
-    { id: "20260128100010618", color: "green" },
-    { id: "20260128100010617", color: "green,violet" }
-  ];
+// ====== STATE ======
+let history = [
+ {id:"20260128100010621",color:"red"},
+ {id:"20260128100010620",color:"green"},
+ {id:"20260128100010619",color:"green"},
+ {id:"20260128100010618",color:"green"},
+ {id:"20260128100010617",color:"green,violet"}
+];
 
-  let wins = 0;
-  let losses = 0;
-  let lastPrediction = null;
+let lastEvaluatedPeriod = null;
+let currentPrediction = null;
+let wins = 0;
+let losses = 0;
 
-  const predictionEl = document.getElementById("prediction");
-  const resultsEl = document.getElementById("results");
-  const statsEl = document.getElementById("stats");
+// ====== DOM ======
+const resultsEl = document.getElementById("results");
+const predText = document.getElementById("predText");
+const predPeriod = document.getElementById("predPeriod");
+const statsEl = document.getElementById("stats");
 
-  function renderResults() {
-    resultsEl.innerHTML = "";
-    history.slice(0,5).forEach(r => {
-      let cls = r.color.includes("green") ? "green" :
-                r.color.includes("red") ? "red" : "violet";
-      resultsEl.innerHTML += `<li class="${cls}">${r.id} → ${r.color}</li>`;
-    });
+// ====== HELPERS ======
+function nextPeriod(id){
+  return (BigInt(id) + 1n).toString();
+}
+
+function renderResults(){
+  resultsEl.innerHTML="";
+  history.slice(0,5).forEach(r=>{
+    let cls = r.color.includes("green")?"green":
+              r.color.includes("red")?"red":"violet";
+    resultsEl.innerHTML += `<li class="${cls}">${r.id} → ${r.color}</li>`;
+  });
+}
+
+function makePrediction(){
+  let greens = history.filter(h=>h.color.includes("green")).length;
+  let reds = history.filter(h=>h.color.includes("red")).length;
+
+  if(greens>=3){
+    currentPrediction="red";
+    predText.innerHTML="🔴 RED";
+    predText.className="red";
+  } else if(reds>=3){
+    currentPrediction="green";
+    predText.innerHTML="🟢 GREEN";
+    predText.className="green";
+  } else {
+    currentPrediction=null;
+    predText.innerHTML="WAIT ⏳";
+    predText.className="wait";
   }
 
-  function makePrediction() {
-    let greens = history.filter(h => h.color.includes("green")).length;
-    let reds = history.filter(h => h.color.includes("red")).length;
+  predPeriod.innerHTML = currentPrediction
+    ? `📌 For period: ${nextPeriod(history[0].id)}`
+    : "";
+}
 
-    if (greens >= 3) {
-      lastPrediction = "red";
-      predictionEl.innerHTML = "🔴 RED";
-      predictionEl.className = "prediction red";
-    } else if (reds >= 3) {
-      lastPrediction = "green";
-      predictionEl.innerHTML = "🟢 GREEN";
-      predictionEl.className = "prediction green";
-    } else {
-      lastPrediction = null;
-      predictionEl.innerHTML = "WAIT ⏳";
-      predictionEl.className = "prediction wait";
-    }
-  }
+function evaluate(){
+  if(!currentPrediction) return;
 
-  function evaluateResult() {
-    if (!lastPrediction) return;
-    let latest = history[0].color;
-    if (latest.includes(lastPrediction)) wins++;
-    else losses++;
-  }
+  let latest = history[0];
+  if(latest.id === lastEvaluatedPeriod) return;
 
-  function updateStats() {
-    let total = wins + losses;
-    let acc = total ? Math.round((wins / total) * 100) : 0;
-    statsEl.innerHTML =
-      `✅ Wins: ${wins} | ❌ Losses: ${losses} | 🎯 Accuracy: ${acc}%`;
-  }
+  lastEvaluatedPeriod = latest.id;
 
-  // ====== TIMER SYNC ======
-  let timer = 60;
-  setInterval(() => {
-    timer--;
+  if(latest.color.includes(currentPrediction)) wins++;
+  else losses++;
 
-    if (timer === 15) {
-      predictionEl.innerHTML = "🔒 LOCKED";
-      predictionEl.className = "prediction lock";
-    }
-
-    if (timer <= 0) {
-      evaluateResult();
-      makePrediction();
-      updateStats();
-      renderResults();
-      timer = 60;
-    }
-  }, 1000);
-
-  // INIT
-  renderResults();
-  makePrediction();
   updateStats();
-</script>
+}
 
+function updateStats(){
+  let total = wins + losses;
+  let acc = total ? Math.round((wins/total)*100) : 0;
+  statsEl.innerHTML = `✅ Wins: ${wins} | ❌ Losses: ${losses} | 🎯 Accuracy: ${acc}%`;
+}
+
+// ====== AUTO LOOP (SIMULATED FETCH) ======
+setInterval(()=>{
+  // 🔁 Here later we plug LIVE API
+  evaluate();
+  makePrediction();
+  renderResults();
+},3000);
+
+// INIT
+renderResults();
+makePrediction();
+updateStats();
+</script>
 </body>
 </html>
