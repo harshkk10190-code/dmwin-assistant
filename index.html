@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kira BKL Smart Assistant – Color Only</title>
+
+<style>
+body{
+  margin:0;
+  font-family:system-ui, sans-serif;
+  background:linear-gradient(180deg,#050b1f,#0b1535);
+  color:#e8ecff;
+}
+.container{
+  max-width:420px;
+  margin:20px auto;
+  padding:16px;
+}
+.card{
+  background:#0e1a3a;
+  border:1px solid #1f3b8f;
+  border-radius:14px;
+  padding:14px;
+  margin-bottom:14px;
+}
+h1{margin:0 0 6px;font-size:20px}
+.small{opacity:.7;font-size:13px}
+.green{color:#2ecc71}
+.red{color:#ff4d4d}
+.violet{color:#c77dff}
+.wait{color:#f1c40f}
+.center{text-align:center}
+button{
+  background:#142b6f;
+  border:1px solid #2f55d4;
+  color:#fff;
+  padding:10px 14px;
+  border-radius:10px;
+  cursor:pointer;
+}
+button.danger{
+  background:#5a1a1a;
+  border-color:#ff4d4d;
+}
+.flex{
+  display:flex;
+  gap:10px;
+  justify-content:center;
+}
+</style>
+</head>
+
+<body>
+<div class="container">
+
+<h1>🧠 Kira Jadugar | 3/4 level</h1>
+<div class="small">🆔 Dm For Access = @wtf.hrs</div>
+
+<div class="card">
+🟢 <b>Status:</b> LIVE<br>
+⏱ <span id="timer">--</span> seconds remaining
+</div>
+
+<div class="card" id="predictionBox">Loading…</div>
+
+<div class="card" id="resultBox">Waiting for result…</div>
+
+<div class="card" id="statsBox">
+📊 Wins: 0 | ❌ Losses: 0 | 🎯 Accuracy: 0%
+</div>
+
+<div class="flex">
+  <button onclick="resetStats()">📊 Reset Stats</button>
+  <button class="danger" onclick="resetHardStop()">🛑 Reset Hard Stop</button>
+</div>
+
+<div class="card">
+📜 <b>Lastest Results</b>
+<div id="history"></div>
+</div>
+
+<div class="small center">
+⚠️ No guarantees • Avoid over-betting • Stay disciplined
+</div>
+
+</div>
+
+<script>
+const API =
+"https://draw.ar-lottery01.com/WinGo/WinGo_1M/GetHistoryIssuePage.json?pageNo=1&pageSize=10";
+
+const history = document.getElementById("history");
+
+/* ================= STATE ================= */
+let state = JSON.parse(localStorage.getItem("dmwin_color_state")) || {
+  wins:0,
+  losses:0,
+  lossStreak:0,
+  hardStop:false,
+  lockedIssue:null,
+  lockedPrediction:null,
+  evaluatedIssue:null
+};
+
+function save(){
+  localStorage.setItem("dmwin_color_state",JSON.stringify(state));
+}
+
+/* ================= HELPERS ================= */
+function colorOf(n){
+  n = Number(n);
+  if(n === 0) return "red,violet";
+  if(n === 5) return "green,violet";
+  return n % 2 === 0 ? "red" : "green";
+}
+
+function nextIssue(issue){
+  const base = issue.slice(0,-2);
+  const num  = Number(issue.slice(-2)) + 1;
+  return base + String(num).padStart(2,"0");
+}
+
+/* ================= AI CORE ================= */
+function analyze(list){
+  if(state.hardStop){
+    return {action:"WAIT", reason:"Hard stop active"};
+  }
+
+  const last6 = list.slice(0,6);
+  let green=0, red=0, violet=0;
+
+  last6.forEach(i=>{
+    const c = colorOf(i.number);
+    if(c.includes("green")) green++;
+    if(c.includes("red")) red++;
+    if(c.includes("violet")) violet++;
+  });
+
+  if(violet >= 2){
+    return {action:"WAIT", reason:"High violet risk"};
+  }
+
+  if(state.lossStreak >= 2){
+    state.hardStop = true;
+    save();
+    return {action:"WAIT", reason:"Hard stop (2 losses)"};
+  }
+
+  let pick = green > red ? "GREEN" : "RED";
+  let confidence = Math.round((Math.max(green,red) / 6) * 100);
+
+  if(confidence < 45){
+    return {action:"WAIT", reason:"Low confidence"};
+  }
+
+  return {action:pick, confidence};
+}
+
+/* ================= MAIN LOOP ================= */
+async function tick(){
+  const res = await fetch(API);
+  const json = await res.json();
+  const list = json.data.list;
+
+  const completedIssue = list[0].issueNumber;
+  const bettingIssue   = nextIssue(completedIssue);
+  const latestColors   = colorOf(list[0].number);
+
+  /* === RESULT CHECK (ONLY ONCE) === */
+  if(
+    state.lockedIssue === completedIssue &&
+    state.evaluatedIssue !== completedIssue
+  ){
+    if(latestColors.includes(state.lockedPrediction)){
+      state.wins++;
+      state.lossStreak = 0;
+      resultBox.innerHTML =
+        "✅ Last Bet: <span class='green'>WIN</span>";
+    }else{
+      state.losses++;
+      state.lossStreak++;
+      resultBox.innerHTML =
+        "❌ Last Bet: <span class='red'>LOSS</span>";
+    }
+
+    state.evaluatedIssue = completedIssue;
+    save();
+  }
+
+  /* === PREDICTION LOCK === */
+  if(state.lockedIssue !== bettingIssue){
+    const d = analyze(list);
+
+    if(d.action === "WAIT"){
+      predictionBox.innerHTML =
+        "⏸ <b>Prediction:</b> <span class='wait'>WAIT</span><br>" +
+        "<span class='small'>" + d.reason + "</span>";
+    }else{
+      state.lockedIssue = bettingIssue;
+      state.lockedPrediction = d.action.toLowerCase();
+      save();
+
+      predictionBox.innerHTML =
+        "🎯 <b>Prediction:</b> <span class='" + d.action.toLowerCase() + "'>" +
+        d.action + "</span><br>" +
+        "<span class='small'>Locked for period " + bettingIssue +
+        " • Confidence: " + d.confidence + "%</span>";
+    }
+  }else{
+    predictionBox.innerHTML =
+      "🔒 <b>Prediction:</b> <span class='" + state.lockedPrediction + "'>" +
+      state.lockedPrediction.toUpperCase() + "</span><br>" +
+      "<span class='small'>Locked for period " + state.lockedIssue + "</span>";
+  }
+
+  /* === STATS === */
+  const total = state.wins + state.losses;
+  const acc   = total ? Math.round((state.wins / total) * 100) : 0;
+  statsBox.innerText =
+    `📊 Wins: ${state.wins} | ❌ Losses: ${state.losses} | 🎯 Accuracy: ${acc}%`;
+
+  /* === LATEST RESULTS (COMPLETED ONLY) === */
+  history.innerHTML = list.slice(0,5).map(i=>{
+    const parts = colorOf(i.number).split(",");
+    const html = parts.map(p=>`<span class="${p}">${p}</span>`).join(" + ");
+    return `<div>${i.issueNumber} → ${html}</div>`;
+  }).join("");
+}
+
+/* ================= TIMER ================= */
+setInterval(()=>{
+  document.getElementById("timer").innerText =
+    60 - new Date().getSeconds();
+},500);
+
+/* ================= CONTROLS ================= */
+function resetStats(){
+  state.wins = 0;
+  state.losses = 0;
+  state.lossStreak = 0;
+  state.lockedIssue = null;
+  state.lockedPrediction = null;
+  state.evaluatedIssue = null;
+  save();
+  location.reload();
+}
+
+function resetHardStop(){
+  state.lossStreak = 0;
+  state.hardStop = false;
+  save();
+  alert("Hard stop reset");
+}
+
+/* ================= START ================= */
+tick();
+setInterval(tick, 60000);
+</script>
+
+</body>
+</html>
