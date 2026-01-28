@@ -84,12 +84,10 @@ function saveState(){
 }
 
 function colorOf(n){
-  n = Number(n);
-
-  if (n === 0) return "red,violet";
-  if (n === 5) return "green,violet";
-
-  return n % 2 === 0 ? "red" : "green";
+  n=Number(n);
+  if(n===0) return "red";
+  if(n===5) return "green";
+  return n%2===0?"red":"green";
 }
 
 function analyze(list){
