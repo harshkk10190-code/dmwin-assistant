@@ -97,7 +97,10 @@ let state = JSON.parse(localStorage.getItem("dmwin_color_state")) || {
   lastBet:null,
   lastEvaluatedIssue:null,
   lossStreak:0,
-  hardStop:false
+  hardStop:false,
+  lockedIssue:null,
+  lockedPrediction:null,
+  lockedConfidence:null
 };
 
 function save(){
@@ -107,9 +110,9 @@ function save(){
 /* ================= HELPERS ================= */
 function colorOf(n){
   n = Number(n);
-  if(n===0) return "red,violet";
-  if(n===5) return "green,violet";
-  return n%2===0 ? "red" : "green";
+  if(n===0) return ["red","violet"];
+  if(n===5) return ["green","violet"];
+  return n%2===0 ? ["red"] : ["green"];
 }
 
 /* ================= AI CORE ================= */
@@ -127,6 +130,7 @@ function analyze(list){
   });
 
   if(violet>=2) return {action:"WAIT",reason:"High violet risk"};
+
   if(state.lossStreak>=3){
     state.hardStop=true;
     save();
@@ -136,8 +140,8 @@ function analyze(list){
   let pick = green>red ? "GREEN" : "RED";
   let confidence = Math.round((Math.max(green,red)/6)*100);
 
-  if(state.lossStreak===1) confidence -= 10;
-  if(state.lossStreak===2) confidence -= 20;
+  if(state.lossStreak===1) confidence-=10;
+  if(state.lossStreak===2) confidence-=20;
 
   if(confidence<45) return {action:"WAIT",reason:"Low confidence"};
 
@@ -151,11 +155,11 @@ async function tick(){
   const list=json.data.list;
 
   const currentIssue=list[0].issueNumber;
-  const latestColor=colorOf(list[0].number);
+  const latestColors=colorOf(list[0].number);
 
-  /* === RESULT CHECK (ONLY ONCE PER ISSUE) === */
+  /* === RESULT CHECK (ONCE PER ISSUE) === */
   if(state.lastBet && state.lastEvaluatedIssue!==currentIssue){
-    if(latestColor.includes(state.lastBet)){
+    if(latestColors.includes(state.lastBet)){
       state.wins++;
       state.lossStreak=0;
       resultBox.innerHTML="✅ Last Bet: <span class='green'>WIN</span>";
@@ -169,19 +173,33 @@ async function tick(){
     save();
   }
 
-  /* === PREDICTION === */
-  const d=analyze(list);
-  if(d.action==="WAIT"){
+  /* === LOCKED PREDICTION === */
+  if(state.lockedIssue !== currentIssue){
+    const d = analyze(list);
+    state.lockedIssue = currentIssue;
+
+    if(d.action==="WAIT"){
+      state.lockedPrediction="WAIT";
+      state.lockedConfidence=null;
+    }else{
+      state.lockedPrediction=d.action.toLowerCase();
+      state.lockedConfidence=d.confidence;
+      state.lastBet=d.action.toLowerCase();
+    }
+    save();
+  }
+
+  /* === DISPLAY PREDICTION === */
+  if(state.lockedPrediction==="WAIT"){
     predictionBox.innerHTML=
       "⏸ <b>Prediction:</b> <span class='wait'>WAIT</span><br>"+
-      "<span class='small'>"+d.reason+"</span>";
+      "<span class='small'>Prediction locked for period "+state.lockedIssue+"</span>";
   }else{
     predictionBox.innerHTML=
-      "🎯 <b>Prediction:</b> <span class='"+d.action.toLowerCase()+"'>"+
-      d.action+"</span><br>"+
-      "<span class='small'>Confidence: "+d.confidence+"%</span>";
-    state.lastBet=d.action.toLowerCase();
-    save();
+      "🎯 <b>Prediction:</b> <span class='"+state.lockedPrediction+"'>"+
+      state.lockedPrediction.toUpperCase()+"</span><br>"+
+      "<span class='small'>Confidence: "+state.lockedConfidence+
+      "% • Locked for period "+state.lockedIssue+"</span>";
   }
 
   /* === STATS === */
@@ -190,11 +208,12 @@ async function tick(){
   statsBox.innerText=
     `📊 Wins: ${state.wins} | ❌ Losses: ${state.losses} | 🎯 Accuracy: ${acc}%`;
 
-  /* === HISTORY (FIXED + VISIBLE) === */
+  /* === HISTORY (FIXED) === */
   history.innerHTML=list.slice(0,5).map(i=>{
-    const parts=colorOf(i.number).split(",");
-    const html=parts.map(p=>`<span class="${p}">${p}</span>`).join(" + ");
-    return `<div>${i.issueNumber} → ${html}</div>`;
+    const parts=colorOf(i.number);
+    return `<div>${i.issueNumber} → ${
+      parts.map(p=>`<span class="${p}">${p}</span>`).join(" + ")
+    }</div>`;
   }).join("");
 }
 
