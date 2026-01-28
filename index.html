@@ -139,10 +139,10 @@ function analyze(list){
     return {action:"WAIT", reason:"High violet risk"};
   }
 
-  if(state.lossStreak >= 3){
+  if(state.lossStreak >= 2){
     state.hardStop = true;
     save();
-    return {action:"WAIT", reason:"Hard stop (3 losses)"};
+    return {action:"WAIT", reason:"Hard stop (2 losses)"};
   }
 
   let pick = green > red ? "GREEN" : "RED";
