@@ -1,14 +1,14 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>DmWin Smart Assistant</title>
 
 <style>
 body{
   margin:0;
-  font-family:system-ui,sans-serif;
+  font-family:system-ui, sans-serif;
   background:linear-gradient(180deg,#050b1f,#0b1535);
   color:#e8ecff;
 }
@@ -23,14 +23,20 @@ body{
   border-radius:14px;
   padding:14px;
   margin-bottom:14px;
+  box-shadow:0 10px 25px rgba(0,0,0,.35);
 }
-h1{margin:0 0 6px;font-size:20px}
-.small{opacity:.7;font-size:13px}
+h1{margin:0;font-size:20px}
+.small{font-size:13px;opacity:.75}
+
 .green{color:#2ecc71}
 .red{color:#ff4d4d}
-.violet{color:#c77dff}
 .wait{color:#f1c40f}
-hr{border:none;border-top:1px solid #1f3b8f;margin:10px 0}
+
+.footer{
+  text-align:center;
+  font-size:12px;
+  opacity:.6;
+}
 </style>
 </head>
 
@@ -41,145 +47,166 @@ hr{border:none;border-top:1px solid #1f3b8f;margin:10px 0}
 <div class="small">Education / analysis only</div>
 
 <div class="card">
-🟢 <b>Status:</b> LIVE<br>
-⏱ <span id="timer">--s remaining</span>
+  🟢 <b>Status:</b> LIVE<br>
+  ⏱ <span id="timer">60s remaining</span>
 </div>
 
-<div class="card" id="predictionBox">Loading…</div>
+<div class="card" id="predictionBox">
+  🔮 Loading prediction...
+</div>
 
-<div class="card" id="resultBox">Waiting for result…</div>
+<div class="card" id="resultBox">
+  📄 Waiting for result...
+</div>
 
 <div class="card" id="statsBox">
-📊 Wins: 0 | ❌ Losses: 0 | 🎯 Accuracy: 0%
+  📊 Wins: 0 | ❌ Losses: 0 | 🎯 Accuracy: 0%
 </div>
 
 <div class="card">
-📜 <b>Latest Results</b>
-<div id="history"></div>
+  📜 <b>Latest Results</b>
+  <div id="history"></div>
 </div>
 
-<div class="small">⚠ No guarantees • Avoid over betting • Stay disciplined</div>
+<div class="footer">
+  ⚠ No guarantees • Avoid over betting • Stay disciplined
+</div>
 
 </div>
 
 <script>
-const API="https://draw.ar-lottery01.com/WinGo/WinGo_1M/GetHistoryIssuePage.json?pageNo=1&pageSize=20";
+const API =
+"https://draw.ar-lottery01.com/WinGo/WinGo_1M/GetHistoryIssuePage.json?pageNo=1&pageSize=20";
 
-let lastBet=null;
-let wins=0,losses=0;
+let lastPrediction = null;
+let lastPredIssue = null;
+let wins = 0, losses = 0;
+let countdown = 60;
 
-// restore stats
-if(localStorage.dmwinStats){
-  ({wins,losses}=JSON.parse(localStorage.dmwinStats));
-}
-
-function saveStats(){
-  localStorage.dmwinStats=JSON.stringify({wins,losses});
-}
+/* ---------------- UTIL ---------------- */
 
 function colorOf(n){
-  n=Number(n);
+  n = Number(n);
   if(n===0) return "red,violet";
   if(n===5) return "green,violet";
-  return n%2===0?"red":"green";
+  return n%2===0 ? "red" : "green";
 }
 
-function sizeOf(n){
-  return n>=5?"BIG":"SMALL";
-}
+/* ---------------- CORE AI ---------------- */
 
-// 🔥 HACKER-LEVEL ANALYSIS
 function analyze(list){
-  let g=0,r=0,violet=0,big=0,small=0;
+  let g=0,r=0,v=0;
+  let recent=[];
 
   list.forEach((i,idx)=>{
-    let w = idx<5 ? 1.6 : idx<10 ? 1.1 : 0.7;
-    let c=colorOf(i.number);
-    let s=sizeOf(i.number);
+    let w = idx<5 ? 1.5 : idx<10 ? 1 : 0.6;
+    let c = colorOf(i.number);
 
-    if(c.includes("violet")) violet+=w;
+    if(c.includes("violet")) v+=w;
     if(c==="green") g+=w;
     if(c==="red") r+=w;
-    if(s==="BIG") big+=w;
-    if(s==="SMALL") small+=w;
+
+    if(!c.includes("violet") && recent.length<3){
+      recent.push(c);
+    }
   });
 
-  const total=g+r;
-  const bias=Math.max(g,r)/Math.max(1,total);
+  const total = g+r;
+  const bias = Math.max(g,r)/Math.max(1,total);
 
-  if(violet>=3) return {action:"WAIT",reason:"High violet risk"};
-  if(bias<0.60) return {action:"WAIT",reason:"Low bias"};
+  /* ❌ BLOCK CONDITIONS */
+  if(v>=3) return {action:"WAIT",reason:"High violet risk"};
+  if(bias<0.55) return {action:"WAIT",reason:"Low bias"};
 
-  const color=g>r?"GREEN":"RED";
-  const size=big>small?"BIG":"SMALL";
+  /* 🔥 POST-VIOLET CONTINUATION */
+  if(recent.length>=2 && recent[0]===recent[1]){
+    return {
+      action: recent[0].toUpperCase(),
+      confidence: Math.round(bias*100),
+      reason: "Momentum continuation"
+    };
+  }
 
+  /* 🔥 DOMINANT TREND */
   return {
-    action:color,
-    size,
-    confidence:Math.round(bias*100)
+    action: g>r ? "GREEN" : "RED",
+    confidence: Math.round(bias*100),
+    reason: "Trend dominance"
   };
 }
 
+/* ---------------- MAIN LOOP ---------------- */
+
 async function tick(){
-  const res=await fetch(API);
-  const json=await res.json();
-  const list=json.data.list;
+  const res = await fetch(API);
+  const json = await res.json();
+  const list = json.data.list;
 
-  const a=analyze(list);
-  const box=document.getElementById("predictionBox");
+  const latest = list[0];
+  const analysis = analyze(list);
 
-  if(a.action==="WAIT"){
-    box.innerHTML=`🎯 <b>Prediction:</b> <span class="wait">WAIT</span><br>
-    ⚠ ${a.reason}`;
-    lastBet=null;
+  /* ----- PREDICTION ----- */
+  const pBox = document.getElementById("predictionBox");
+  if(analysis.action==="WAIT"){
+    pBox.innerHTML = `
+      🔮 <b>Prediction:</b> <span class="wait">WAIT</span><br>
+      <span class="small">⚠ ${analysis.reason}</span>
+    `;
+    lastPrediction = null;
+    lastPredIssue = null;
   }else{
-    box.innerHTML=`🎯 <b>Color:</b> <span class="${a.action.toLowerCase()}">${a.action}</span><br>
-    📐 <b>Big/Small:</b> ${a.size}<br>
-    🔥 Confidence: ${a.confidence}%`;
-    lastBet={color:a.action,size:a.size};
+    pBox.innerHTML = `
+      🎯 <b>Prediction:</b>
+      <span class="${analysis.action.toLowerCase()}">${analysis.action}</span><br>
+      <span class="small">Confidence: ${analysis.confidence}% • ${analysis.reason}</span>
+    `;
+    lastPrediction = analysis.action;
+    lastPredIssue = latest.issueNumber;
   }
 
-  // RESULT CHECK
-  const latest=list[0];
-  const lc=colorOf(latest.number);
-  const ls=sizeOf(latest.number);
-  const rb=document.getElementById("resultBox");
-
-  if(lastBet){
-    if(lc.includes(lastBet.color.toLowerCase()) && ls===lastBet.size){
-      wins++; rb.innerHTML="✅ Last Bet: WIN";
+  /* ----- RESULT CHECK ----- */
+  const rBox = document.getElementById("resultBox");
+  if(lastPrediction && latest.issueNumber!==lastPredIssue){
+    const actual = colorOf(latest.number);
+    if(actual.includes(lastPrediction.toLowerCase())){
+      wins++;
+      rBox.innerHTML = `✅ Last Result: <span class="green">WIN</span>`;
     }else{
-      losses++; rb.innerHTML="❌ Last Bet: LOSS";
+      losses++;
+      rBox.innerHTML = `❌ Last Result: <span class="red">LOSS</span>`;
     }
-    saveStats();
-    lastBet=null;
+    lastPrediction = null;
+  }else{
+    rBox.innerHTML = "📄 Waiting for result...";
   }
 
-  const total=wins+losses;
-  const acc=total?Math.round(wins/total*100):0;
-  document.getElementById("statsBox").innerHTML=
+  const total = wins+losses;
+  const acc = total ? Math.round(wins/total*100) : 0;
+  document.getElementById("statsBox").innerHTML =
     `📊 Wins: ${wins} | ❌ Losses: ${losses} | 🎯 Accuracy: ${acc}%`;
 
-  // HISTORY
-  document.getElementById("history").innerHTML=
+  /* ----- HISTORY ----- */
+  document.getElementById("history").innerHTML =
     list.slice(0,5).map(i=>{
-      const c=colorOf(i.number);
+      const c = colorOf(i.number);
       return `<div class="${c.includes("green")?"green":"red"}">
-      ${i.issueNumber} → ${c}
+        ${i.issueNumber} → ${c}
       </div>`;
     }).join("");
 }
 
-// TIMER synced to real minute
-function timer(){
-  const s=60-new Date().getSeconds();
-  document.getElementById("timer").innerText=`${s}s remaining`;
-}
+/* ---------------- TIMER ---------------- */
+
+setInterval(()=>{
+  countdown--;
+  if(countdown<=0) countdown=60;
+  document.getElementById("timer").innerText = countdown+"s remaining";
+},1000);
+
+/* ---------------- START ---------------- */
 
 tick();
 setInterval(tick,60000);
-setInterval(timer,1000);
-timer();
 </script>
 </body>
 </html>
