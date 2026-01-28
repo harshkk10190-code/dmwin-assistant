@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DmWin Color Assistant</title>
+<style>
+body {
+  background:#0f172a;
+  color:#e5e7eb;
+  font-family: Arial, sans-serif;
+  margin:0;
+  padding:15px;
+}
+.card {
+  background:#020617;
+  border:1px solid #38bdf8;
+  border-radius:12px;
+  padding:15px;
+  margin-bottom:12px;
+}
+.green {color:#22c55e;}
+.red {color:#ef4444;}
+.violet {color:#a855f7;}
+small {opacity:.7;}
+</style>
+</head>
+<body>
+
+<h2>🧠 DmWin Color Assistant</h2>
+<p><small>Education / analysis only</small></p>
+
+<div class="card" id="status">
+Status: <b>Loading data…</b>
+</div>
+
+<div class="card">
+<h3>Latest Results</h3>
+<div id="history">Loading…</div>
+</div>
+
+<script>
+fetch("https://draw.ar-lottery01.com/WinGo/WinGo_1M/GetHistoryIssuePage.json")
+.then(r=>r.json())
+.then(j=>{
+  const list=j.data.list;
+  let html="";
+  list.slice(0,5).forEach(x=>{
+    let cls=x.color.includes("green")?"green":
+            x.color.includes("red")?"red":"violet";
+    html+=`<div class="${cls}">
+      ${x.issueNumber} → ${x.color}
+    </div>`;
+  });
+  document.getElementById("history").innerHTML=html;
+  document.getElementById("status").innerHTML=
+    "Status: <b class='green'>LIVE</b>";
+})
+.catch(()=>{
+  document.getElementById("status").innerHTML=
+    "Status: <b class='red'>API BLOCKED</b>";
+});
+</script>
+
+</body>
+</html>
