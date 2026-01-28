@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>DmWin Smart Assistant – Color Only</title>
+<title>Kira BKL Smart Assistant – Color Only</title>
 
 <style>
 body{
@@ -28,6 +28,7 @@ h1{margin:0 0 6px;font-size:20px}
 .small{opacity:.7;font-size:13px}
 .green{color:#2ecc71}
 .red{color:#ff4d4d}
+.violet{color:#c77dff}
 .wait{color:#f1c40f}
 .center{text-align:center}
 </style>
@@ -44,13 +45,9 @@ h1{margin:0 0 6px;font-size:20px}
   ⏱ <span id="timer">--</span> seconds remaining
 </div>
 
-<div class="card" id="predictionBox">
-  Loading…
-</div>
+<div class="card" id="predictionBox">Loading…</div>
 
-<div class="card" id="resultBox">
-  Waiting for result…
-</div>
+<div class="card" id="resultBox">Waiting for result…</div>
 
 <div class="card" id="statsBox">
   📊 Wins: 0 | ❌ Losses: 0 | 🎯 Accuracy: 0%
@@ -71,11 +68,13 @@ h1{margin:0 0 6px;font-size:20px}
 const API =
 "https://draw.ar-lottery01.com/WinGo/WinGo_1M/GetHistoryIssuePage.json?pageNo=1&pageSize=10";
 
+/* ===== STATE (refresh-safe) ===== */
 let state = JSON.parse(localStorage.getItem("dmwin_color_state")) || {
   wins:0,
   losses:0,
   lastBet:null,
-  lastResult:null,
+  lastBetPeriod:null,
+  lastSettledPeriod:null,
   lossStreak:0
 };
 
@@ -83,101 +82,110 @@ function saveState(){
   localStorage.setItem("dmwin_color_state",JSON.stringify(state));
 }
 
+/* ===== COLOR LOGIC (CORRECT) ===== */
 function colorOf(n){
-  n=Number(n);
-  if(n===0) return "red";
-  if(n===5) return "green";
-  return n%2===0?"red":"green";
+  n = Number(n);
+  if(n === 0) return "red,violet";
+  if(n === 5) return "green,violet";
+  return n % 2 === 0 ? "red" : "green";
 }
 
+/* ===== ANALYSIS (NOT OVER-WAIT) ===== */
 function analyze(list){
-  const last6=list.slice(0,6).map(i=>colorOf(i.number));
-  const green=last6.filter(c=>c==="green").length;
-  const red=last6.filter(c=>c==="red").length;
+  const last6 = list.slice(0,6).map(i=>colorOf(i.number));
 
-  let violetRisk=list.slice(0,6)
-    .filter(i=>[0,5].includes(Number(i.number))).length;
+  const green = last6.filter(c=>c.includes("green")).length;
+  const red   = last6.filter(c=>c.includes("red")).length;
+  const violet = last6.filter(c=>c.includes("violet")).length;
 
-  if(violetRisk>=2) return {action:"WAIT",reason:"High violet risk"};
+  if(violet >= 3) return {action:"WAIT", reason:"High violet risk"};
 
-  let pick=green>red?"GREEN":"RED";
-  let confidence=Math.round((Math.max(green,red)/6)*100);
+  if(state.lossStreak >= 2)
+    return {action:"WAIT", reason:"Cooldown after losses"};
 
-  // LOSS RECOVERY
-  if(state.lossStreak===1){
-    pick=state.lastBet==="GREEN"?"RED":"GREEN";
-    confidence-=10;
-  }
+  let pick = green > red ? "GREEN" : "RED";
+  let confidence = Math.round((Math.max(green,red)/6)*100);
 
-  if(state.lossStreak>=2){
-    return {action:"WAIT",reason:"Recovery cooldown"};
-  }
+  if(Math.abs(green-red) <= 1)
+    return {action:"WAIT", reason:"No clear bias"};
 
-  return {action:pick,confidence};
+  return {action:pick, confidence};
 }
 
+/* ===== MAIN LOOP ===== */
 async function tick(){
-  const res=await fetch(API);
-  const json=await res.json();
-  const list=json.data.list;
+  const res = await fetch(API);
+  const json = await res.json();
+  const list = json.data.list;
 
-  const latestColor=colorOf(list[0].number);
+  const latestPeriod = list[0].issueNumber;
+  const latestColor = colorOf(list[0].number);
 
-  // RESULT CHECK
-  if(state.lastBet){
-    if(latestColor===state.lastBet){
+  /* ===== SETTLE RESULT (ONCE ONLY) ===== */
+  if(
+    state.lastBet &&
+    state.lastBetPeriod &&
+    state.lastSettledPeriod !== latestPeriod
+  ){
+    if(latestColor.includes(state.lastBet)){
       state.wins++;
-      state.lossStreak=0;
-      document.getElementById("resultBox").innerHTML=
+      state.lossStreak = 0;
+      document.getElementById("resultBox").innerHTML =
         "✅ Last Bet: <span class='green'>WIN</span>";
     }else{
       state.losses++;
       state.lossStreak++;
-      document.getElementById("resultBox").innerHTML=
+      document.getElementById("resultBox").innerHTML =
         "❌ Last Bet: <span class='red'>LOSS</span>";
     }
-    state.lastBet=null;
+
+    state.lastSettledPeriod = latestPeriod;
+    state.lastBet = null;
+    state.lastBetPeriod = null;
     saveState();
   }
 
-  const decision=analyze(list);
-  const box=document.getElementById("predictionBox");
+  /* ===== PREDICTION ===== */
+  const decision = analyze(list);
+  const box = document.getElementById("predictionBox");
 
-  if(decision.action==="WAIT"){
-    box.innerHTML=
-      "⏸ <b>Prediction:</b> <span class='wait'>WAIT</span><br>"+
+  if(decision.action === "WAIT"){
+    box.innerHTML =
+      "⏸ <b>Prediction:</b> <span class='wait'>WAIT</span><br>" +
       "<span class='small'>"+decision.reason+"</span>";
   }else{
-    box.innerHTML=
-      "🎯 <b>Prediction:</b> "+
-      "<span class='"+decision.action.toLowerCase()+"'>"+
-      decision.action+"</span><br>"+
+    box.innerHTML =
+      "🎯 <b>Prediction:</b> <span class='"+decision.action.toLowerCase()+"'>" +
+      decision.action+"</span><br>" +
       "<span class='small'>Confidence: "+decision.confidence+"%</span>";
-    state.lastBet=decision.action.toLowerCase();
+
+    state.lastBet = decision.action.toLowerCase();
+    state.lastBetPeriod = latestPeriod;
     saveState();
   }
 
-  const total=state.wins+state.losses;
-  const acc=total?Math.round((state.wins/total)*100):0;
-  document.getElementById("statsBox").innerText=
+  /* ===== STATS ===== */
+  const total = state.wins + state.losses;
+  const acc = total ? Math.round((state.wins/total)*100) : 0;
+  document.getElementById("statsBox").innerText =
     `📊 Wins: ${state.wins} | ❌ Losses: ${state.losses} | 🎯 Accuracy: ${acc}%`;
 
-  document.getElementById("history").innerHTML=
+  /* ===== HISTORY ===== */
+  document.getElementById("history").innerHTML =
     list.slice(0,5).map(i=>{
-      const c=colorOf(i.number);
-      return `<div class="${c}">${i.issueNumber} → ${c}</div>`;
+      const c = colorOf(i.number);
+      const cls = c.includes("green") ? "green" :
+                  c.includes("red") ? "red" : "violet";
+      return `<div class="${cls}">${i.issueNumber} → ${c}</div>`;
     }).join("");
 }
 
-// TIMER (REAL 1-MIN SYNC)
-function startTimer(){
-  setInterval(()=>{
-    const s=60-new Date().getSeconds();
-    document.getElementById("timer").innerText=s;
-  },500);
-}
+/* ===== REAL TIMER ===== */
+setInterval(()=>{
+  document.getElementById("timer").innerText =
+    60 - new Date().getSeconds();
+},500);
 
-startTimer();
 tick();
 setInterval(tick,60000);
 </script>
