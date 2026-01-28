@@ -12,34 +12,25 @@ body{
   background:linear-gradient(180deg,#050b1f,#0b1535);
   color:#e8ecff;
 }
-.container{max-width:420px;margin:20px auto;padding:16px}
+.container{
+  max-width:420px;
+  margin:20px auto;
+  padding:16px;
+}
 .card{
   background:#0e1a3a;
   border:1px solid #1f3b8f;
-  border-radius:12px;
+  border-radius:14px;
   padding:14px;
   margin-bottom:14px;
 }
+h1{margin:0 0 6px;font-size:22px}
+.small{opacity:.7;font-size:13px}
+
 .green{color:#2ecc71}
 .red{color:#ff4d4d}
 .violet{color:#c77dff}
 .wait{color:#f1c40f}
-.small{opacity:.7;font-size:13px}
-
-.heatmap{
-  display:grid;
-  grid-template-columns:repeat(10,1fr);
-  gap:6px;
-  margin-top:8px;
-}
-.dot{
-  width:100%;
-  aspect-ratio:1/1;
-  border-radius:50%;
-}
-.dot.green{background:#2ecc71}
-.dot.red{background:#ff4d4d}
-.dot.violet{background:#c77dff}
 </style>
 </head>
 
@@ -51,53 +42,61 @@ body{
 
 <div class="card">
 🟢 <b>Status:</b> LIVE<br>
-⏱ <span id="countdown">Syncing clock…</span>
+⏱ <span id="timer">Syncing time…</span>
 </div>
 
-<div class="card" id="colorBox">⏳ Loading color AI…</div>
-<div class="card" id="sizeBox">⏳ Loading Big/Small AI…</div>
-
-<div class="card">
-📊 <b>Heatmap (Last 50 Rounds)</b>
-<div id="heatmap" class="heatmap"></div>
+<div class="card" id="colorBox">
+🎯 Color AI loading…
 </div>
 
-<div class="small">⚠️ No guarantees • Avoid over betting • Stay disciplined</div>
+<div class="card" id="sizeBox">
+📐 Big/Small AI loading…
+</div>
+
+<div class="small">
+⚠️ No guarantees • Avoid over betting • Stay disciplined
+</div>
+
 </div>
 
 <script>
-const API="https://draw.ar-lottery01.com/WinGo/WinGo_1M/GetHistoryIssuePage.json?pageNo=1&pageSize=50";
-
-function colorOf(n){
-  if(n==0) return "violet";
-  if(n==5) return "violet";
-  return n%2===0?"red":"green";
-}
-function sizeOf(n){ return n<=4?"small":"big"; }
+const API =
+"https://draw.ar-lottery01.com/WinGo/WinGo_1M/GetHistoryIssuePage.json?pageNo=1&pageSize=20";
 
 // ⏱ CLOCK SYNC
 setInterval(()=>{
-  const s=new Date().getSeconds();
-  document.getElementById("countdown").innerText =
-    `⏳ ${60-s}s remaining`;
+  const sec = new Date().getSeconds();
+  document.getElementById("timer").innerText =
+    `⏳ ${60 - sec}s remaining`;
 },1000);
+
+// 🎨 COLOR LOGIC
+function colorOf(n){
+  if(n===0 || n===5) return "violet";
+  return n%2===0 ? "red" : "green";
+}
+
+// 📐 SIZE LOGIC
+function sizeOf(n){
+  return n <= 4 ? "small" : "big";
+}
 
 // 🎯 COLOR AI
 function colorAI(list){
-  let g=0,r=0,v=0;
+  let g=0, r=0, v=0;
+
   list.slice(0,8).forEach((i,idx)=>{
-    const w=8-idx;
-    const c=colorOf(i.number);
+    const w = 8 - idx;
+    const c = colorOf(i.number);
     if(c==="green") g+=w;
     if(c==="red") r+=w;
     if(c==="violet") v++;
   });
 
-  const diff=Math.abs(g-r);
-  const confidence=Math.min(100,diff*8);
+  const confidence = Math.abs(g-r)*8;
 
   if(v>=2) return {action:"WAIT",reason:"Violet risk"};
-  if(g>=28||r>=28) return {action:"WAIT",reason:"Strong streak"};
+  if(g>=28 || r>=28) return {action:"WAIT",reason:"Strong streak"};
   if(confidence<60) return {action:"WAIT",reason:"Low confidence"};
 
   return g>r
@@ -107,9 +106,9 @@ function colorAI(list){
 
 // 📐 BIG / SMALL AI
 function sizeAI(list){
-  let big=0,small=0;
+  let big=0, small=0;
   list.slice(0,6).forEach(i=>{
-    sizeOf(i.number)==="big"?big++:small++;
+    sizeOf(i.number)==="big" ? big++ : small++;
   });
 
   if(big>=4) return "SMALL";
@@ -118,32 +117,31 @@ function sizeAI(list){
 }
 
 async function tick(){
-  const r=await fetch(API);
-  const j=await r.json();
-  const list=j.data.list;
+  const res = await fetch(API);
+  const json = await res.json();
+  const list = json.data.list;
 
-  // COLOR
-  const c=colorAI(list);
-  colorBox.innerHTML = c.action==="WAIT"
-    ? `🎯 Color AI: <span class="wait">WAIT</span><br><span class="small">${c.reason}</span>`
-    : `🎯 Color AI: <b class="${c.action.toLowerCase()}">${c.action}</b><br>🔥 Confidence: ${c.confidence}%`;
+  // COLOR AI
+  const c = colorAI(list);
+  colorBox.innerHTML =
+    c.action==="WAIT"
+    ? `🎯 <b>Color AI:</b> <span class="wait">WAIT</span><br>
+       <span class="small">⚠️ ${c.reason}</span>`
+    : `🎯 <b>Color AI:</b>
+       <span class="${c.action.toLowerCase()}">${c.action}</span><br>
+       🔥 Confidence: ${c.confidence}%`;
 
-  // SIZE
-  const s=sizeAI(list);
+  // SIZE AI
+  const s = sizeAI(list);
   sizeBox.innerHTML =
     s==="WAIT"
-    ? `📐 Big/Small AI: <span class="wait">WAIT</span>`
-    : `📐 Big/Small AI: <b>${s}</b>`;
-
-  // HEATMAP
-  heatmap.innerHTML=list.map(i=>{
-    const c=colorOf(i.number);
-    return `<div class="dot ${c}"></div>`;
-  }).join("");
+    ? `📐 <b>Big/Small AI:</b> <span class="wait">WAIT</span>`
+    : `📐 <b>Big/Small AI:</b> <b>${s}</b>`;
 }
 
 tick();
 setInterval(tick,60000);
 </script>
+
 </body>
 </html>
