@@ -285,59 +285,59 @@ function resetHardStop(){
 /* ================= START ================= */
 tick();
 setInterval(tick, 60000);
-/* ===== SMART FOOTER STATUS ENGINE v2 ===== */
-let footerTick = 0;
+/* ===== ELITE FOOTER STATUS (FIXED PRIORITY) ===== */
 
-function getFooterMessages(){
-  // HARD STOP
+function getFooterStatus(){
+  // 1️⃣ HARD STOP
   if (state.hardStop) {
-    return [
-      "🛑 HARD STOP active",
-      "🧊 Capital protection enabled",
-      "🔄 Manual reset required"
-    ];
+    return { text: "🛑 HARD STOP • Manual reset required", color: "#ff4d4d" };
   }
 
-  // WAIT MODE
-  if (!state.lockedPrediction) {
-    return [
-      "⏸ Trade skipped • Risk detected",
-      "🧠 AI analyzing volatility",
-      "📊 Pattern confidence too low",
-      "🛡 Protecting balance"
-    ];
+  // 2️⃣ COOLDOWN
+  if (state.lossStreak >= 2) {
+    return {
+      text: `🧊 Cooldown active • Loss streak ${state.lossStreak}`,
+      color: "#f1c40f"
+    };
   }
 
-  // LOCKED MODE
-  const msgs = [
-    `🔒 Locked ${state.lockedPrediction.toUpperCase()} • ${state.lockedIssue}`,
-    state.lastConfidence
-      ? `🎯 Confidence ${state.lastConfidence}%`
-      : "🎯 Confidence stabilizing",
-    "📡 Live round monitoring",
-    "🧠 AI holding position"
-  ];
+  // 3️⃣ WAIT MODE (NO BET)
+  if (!state.lockedPrediction && !state.lastBet) {
+    return {
+      text: "🧠 Risk filter active • No trade this round",
+      color: "#9aa4ff"
+    };
+  }
 
-  // AFTER BET
+  // 4️⃣ LOCKED PREDICTION (BET EXISTS)
+  if (state.lockedIssue && state.lockedPrediction && !state.lastBet) {
+    return {
+      text: `🔒 Locked ${state.lockedPrediction.toUpperCase()} • Period ${state.lockedIssue}`,
+      color: "#2ecc71"
+    };
+  }
+
+  // 5️⃣ WAITING FOR RESULT
   if (state.lastBet) {
-    msgs.push("⏳ Waiting for confirmed result");
+    return {
+      text: "⏳ Waiting for confirmed result",
+      color: "#cfd3dc"
+    };
   }
 
-  // LOSS WARNING
-  if (state.lossStreak >= 1) {
-    msgs.push("⚠️ Volatility spike detected");
-  }
-
-  return msgs;
+  // fallback
+  return {
+    text: "🧠 AI scanning patterns",
+    color: "#9aa4ff"
+  };
 }
 
 setInterval(() => {
   const el = document.getElementById("footerStatus");
   if (!el) return;
-
-  const msgs = getFooterMessages();
-  el.innerText = msgs[footerTick % msgs.length];
-  footerTick++;
+  const s = getFooterStatus();
+  el.innerText = s.text;
+  el.style.color = s.color;
 }, 1500);
 </script>
 
