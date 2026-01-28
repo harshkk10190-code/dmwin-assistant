@@ -1,161 +1,208 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>DmWin Color Assistant</title>
-<style>
-body {
-  margin: 0;
-  font-family: system-ui, sans-serif;
-  background: linear-gradient(180deg,#050b1f,#0b1535);
-  color: #e8ecff;
-}
-.container {
-  max-width: 420px;
-  margin: 20px auto;
-  padding: 16px;
-}
-.card {
-  background: #0e1a3a;
-  border: 1px solid #1f3b8f;
-  border-radius: 12px;
-  padding: 14px;
-  margin-bottom: 14px;
-}
-h1 {
-  font-size: 20px;
-  margin: 0 0 6px;
-}
-.small {
-  opacity: .7;
-  font-size: 13px;
-}
-.green { color: #2ecc71 }
-.red { color: #ff4d4d }
-.violet { color: #c77dff }
-.wait { color: #f1c40f }
-hr { border: none; border-top: 1px solid #1f3b8f; margin: 10px 0 }
-</style>
+  <meta charset="UTF-8" />
+  <title>🧠 DmWin Color Assistant</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: linear-gradient(180deg, #020617, #020024);
+      color: #e5e7eb;
+    }
+
+    .container {
+      max-width: 420px;
+      margin: auto;
+      padding: 16px;
+    }
+
+    h1 {
+      font-size: 22px;
+      margin-bottom: 4px;
+    }
+
+    .sub {
+      font-size: 13px;
+      opacity: 0.7;
+      margin-bottom: 14px;
+    }
+
+    .box {
+      background: rgba(255,255,255,0.04);
+      border: 1px solid #1e3a8a;
+      border-radius: 14px;
+      padding: 14px;
+      margin-bottom: 14px;
+      box-shadow: 0 0 14px rgba(0,0,0,0.4);
+    }
+
+    .status {
+      font-weight: bold;
+      color: #22c55e;
+    }
+
+    .prediction {
+      font-size: 18px;
+      margin-top: 6px;
+    }
+
+    .wait {
+      color: #facc15;
+    }
+
+    .lock {
+      color: #fb7185;
+    }
+
+    .green { color: #22c55e; }
+    .red { color: #ef4444; }
+    .violet { color: #c084fc; }
+
+    ul {
+      padding-left: 18px;
+      margin: 8px 0 0;
+    }
+
+    li {
+      font-size: 14px;
+      margin-bottom: 4px;
+    }
+
+    .stats {
+      font-size: 14px;
+      margin-top: 6px;
+    }
+
+    .footer {
+      font-size: 12px;
+      opacity: 0.5;
+      margin-top: 20px;
+      text-align: center;
+    }
+  </style>
 </head>
 
 <body>
-<div class="container">
+  <div class="container">
 
-  <h1>🧠 DmWin Color Assistant</h1>
-  <div class="small">Education / analysis only</div>
+    <h1>🧠 DmWin Color Assistant</h1>
+    <div class="sub">📚 Education / analysis only</div>
 
-  <div class="card">
-    <b>Status:</b> <span class="green">LIVE</span><br>
-    <span class="small">Auto refresh every 60 seconds</span>
+    <div class="box">
+      🚦 Status: <span class="status">LIVE</span><br>
+      ⏱️ Auto refresh every <b>60 seconds</b>
+    </div>
+
+    <div class="box">
+      🎯 <b>Prediction</b>
+      <div id="prediction" class="prediction wait">WAIT ⏳</div>
+      <div id="biasText" class="sub">⚠️ Violet risk high</div>
+    </div>
+
+    <div class="box">
+      📊 <b>Stats</b>
+      <div class="stats" id="stats">
+        ✅ Wins: 0 | ❌ Losses: 0 | 🎯 Accuracy: 0%
+      </div>
+    </div>
+
+    <div class="box">
+      🧾 <b>Latest Results</b>
+      <ul id="results"></ul>
+    </div>
+
+    <div class="footer">
+      ⚠️ No guarantees • Avoid over betting • Stay disciplined
+    </div>
+
   </div>
-
-  <div class="card" id="predictionBox">
-    Loading prediction…
-  </div>
-
-  <div class="card" id="resultBox">
-    Waiting for result…
-  </div>
-
-  <div class="card" id="statsBox">
-    Wins: 0 | Losses: 0 | Accuracy: 0%
-  </div>
-
-  <div class="card">
-    <b>Latest Results</b>
-    <div id="history"></div>
-  </div>
-
-</div>
 
 <script>
-const API =
-"https://draw.ar-lottery01.com/WinGo/WinGo_1M/GetHistoryIssuePage.json?pageNo=1&pageSize=10";
+  // ====== MOCK DATA (replace later with API if needed) ======
+  let history = [
+    { id: "20260128100010621", color: "red" },
+    { id: "20260128100010620", color: "green" },
+    { id: "20260128100010619", color: "green" },
+    { id: "20260128100010618", color: "green" },
+    { id: "20260128100010617", color: "green,violet" }
+  ];
 
-let lastPrediction = null;
-let wins = 0, losses = 0;
+  let wins = 0;
+  let losses = 0;
+  let lastPrediction = null;
 
-function colorOf(n){
-  n = Number(n);
-  if(n === 0) return "red,violet";
-  if(n === 5) return "green,violet";
-  return n % 2 === 0 ? "red" : "green";
-}
+  const predictionEl = document.getElementById("prediction");
+  const resultsEl = document.getElementById("results");
+  const statsEl = document.getElementById("stats");
 
-function analyze(list){
-  const colors = list.map(i => colorOf(i.number));
-  const pure = colors.filter(c => !c.includes("violet"));
-
-  const greenCount = pure.filter(c => c==="green").length;
-  const redCount   = pure.filter(c => c==="red").length;
-
-  const violetCount = colors.filter(c => c.includes("violet")).length;
-
-  // DEFENSIVE RULES
-  if(violetCount >= 2) return {action:"WAIT", reason:"Violet risk high"};
-  if(greenCount >= 4 && redCount <= 1) return {action:"WAIT", reason:"Green streak"};
-  if(redCount >= 4 && greenCount <= 1) return {action:"WAIT", reason:"Red streak"};
-
-  if(greenCount > redCount) return {action:"GREEN", confidence:"MEDIUM"};
-  if(redCount > greenCount) return {action:"RED", confidence:"MEDIUM"};
-
-  return {action:"WAIT", reason:"No clear bias"};
-}
-
-async function tick(){
-  const res = await fetch(API);
-  const json = await res.json();
-  const list = json.data.list;
-
-  const analysis = analyze(list);
-
-  const box = document.getElementById("predictionBox");
-  if(analysis.action === "WAIT"){
-    box.innerHTML = `
-      <b>🧠 Prediction:</b> <span class="wait">WAIT</span><br>
-      <span class="small">${analysis.reason}</span>
-    `;
-    lastPrediction = null;
-  } else {
-    box.innerHTML = `
-      <b>🧠 Prediction:</b>
-      <span class="${analysis.action.toLowerCase()}">${analysis.action}</span><br>
-      <span class="small">Confidence: ${analysis.confidence}</span>
-    `;
-    lastPrediction = analysis.action;
+  function renderResults() {
+    resultsEl.innerHTML = "";
+    history.slice(0,5).forEach(r => {
+      let cls = r.color.includes("green") ? "green" :
+                r.color.includes("red") ? "red" : "violet";
+      resultsEl.innerHTML += `<li class="${cls}">${r.id} → ${r.color}</li>`;
+    });
   }
 
-  // RESULT CHECK
-  const latestColor = colorOf(list[0].number);
-  const resultBox = document.getElementById("resultBox");
+  function makePrediction() {
+    let greens = history.filter(h => h.color.includes("green")).length;
+    let reds = history.filter(h => h.color.includes("red")).length;
 
-  if(lastPrediction){
-    if(latestColor.includes(lastPrediction.toLowerCase())){
-      wins++;
-      resultBox.innerHTML = `Last Result: <span class="green">WIN</span>`;
+    if (greens >= 3) {
+      lastPrediction = "red";
+      predictionEl.innerHTML = "🔴 RED";
+      predictionEl.className = "prediction red";
+    } else if (reds >= 3) {
+      lastPrediction = "green";
+      predictionEl.innerHTML = "🟢 GREEN";
+      predictionEl.className = "prediction green";
     } else {
-      losses++;
-      resultBox.innerHTML = `Last Result: <span class="red">LOSS</span>`;
+      lastPrediction = null;
+      predictionEl.innerHTML = "WAIT ⏳";
+      predictionEl.className = "prediction wait";
     }
   }
 
-  const total = wins + losses;
-  const acc = total ? Math.round((wins/total)*100) : 0;
-  document.getElementById("statsBox").innerText =
-    `Wins: ${wins} | Losses: ${losses} | Accuracy: ${acc}%`;
+  function evaluateResult() {
+    if (!lastPrediction) return;
+    let latest = history[0].color;
+    if (latest.includes(lastPrediction)) wins++;
+    else losses++;
+  }
 
-  // HISTORY
-  document.getElementById("history").innerHTML =
-    list.slice(0,5).map(i =>
-      `<div class="${colorOf(i.number).includes("green")?"green":"red"}">
-        ${i.issueNumber} → ${colorOf(i.number)}
-      </div>`
-    ).join("");
-}
+  function updateStats() {
+    let total = wins + losses;
+    let acc = total ? Math.round((wins / total) * 100) : 0;
+    statsEl.innerHTML =
+      `✅ Wins: ${wins} | ❌ Losses: ${losses} | 🎯 Accuracy: ${acc}%`;
+  }
 
-tick();
-setInterval(tick, 60000);
+  // ====== TIMER SYNC ======
+  let timer = 60;
+  setInterval(() => {
+    timer--;
+
+    if (timer === 15) {
+      predictionEl.innerHTML = "🔒 LOCKED";
+      predictionEl.className = "prediction lock";
+    }
+
+    if (timer <= 0) {
+      evaluateResult();
+      makePrediction();
+      updateStats();
+      renderResults();
+      timer = 60;
+    }
+  }, 1000);
+
+  // INIT
+  renderResults();
+  makePrediction();
+  updateStats();
 </script>
 
 </body>
