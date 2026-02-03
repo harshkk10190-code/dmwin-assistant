@@ -959,12 +959,6 @@ function analyze(list){
     return { action:"WAIT", reason:"🛑 Hard stop active" };
   }
 
-  if(state.lossStreak === 2 && state.cooldownRounds === 0){
-  state.cooldownRounds = 1;   // arm skip only ONCE
-  state.lastWaitReason = "🧊 2 losses → 1 skip";
-  save();
-  return { action:"WAIT", reason:"🧊 2 losses → 1 skip" };
-}
 
   const last6 = list.slice(0,6);
 
