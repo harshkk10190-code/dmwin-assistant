@@ -1,0 +1,1418 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kira Smart Assistant – Color Only</title>
+
+<style>
+/* ================== GLOBAL ================== */
+body{
+  margin:0;
+  font-family:system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  background:linear-gradient(180deg,#050b1f,#0b1535);
+  color:#e8ecff;
+}
+
+.container{
+  max-width:420px;
+  margin:20px auto;
+  padding:16px;
+}
+
+/* ================== CARDS ================== */
+.card{
+  background:#0e1a3a;
+  border:1px solid #1f3b8f;
+  border-radius:14px;
+  padding:14px;
+  margin-bottom:14px;
+  box-shadow:0 6px 18px rgba(0,0,0,.25);
+}
+
+h1{
+  margin:0 0 6px;
+  font-size:20px;
+}
+
+.small{
+  margin-top:6px;
+  font-size:13px;
+  opacity:.8;
+}
+
+.small b{
+  color:#9fb7ff;
+}
+
+.center{
+  text-align:center;
+}
+
+/* ================== COLORS ================== */
+.green{color:#2ecc71}
+.red{color:#ff4d4d}
+.violet{color:#c77dff}
+.wait{color:#f1c40f}
+
+/* ================== BUTTONS ================== */
+button{
+  background:#142b6f;
+  border:1px solid #2f55d4;
+  color:#fff;
+  padding:10px 14px;
+  border-radius:10px;
+  cursor:pointer;
+  transition:all .2s ease;
+}
+
+/* ===== CUTE RESET BUTTONS ===== */
+.reset-btn{
+  background:linear-gradient(135deg,#0d1f2a,#1f4a7a);
+  border:1px solid #2f55d4;
+  color:#8fc2ff;
+  border-radius:999px;
+  padding:10px 14px;
+  font-weight:600;
+  box-shadow:0 0 8px rgba(106,169,255,.25);
+}
+
+.reset-btn:hover{
+  transform:translateY(-1px);
+  box-shadow:0 0 12px rgba(106,169,255,.45);
+}
+
+.reset-danger{
+  background:linear-gradient(135deg,#2a0d0d,#8a1a1a);
+  border:1px solid #ff4d4d;
+  color:#ffb3b3;
+  border-radius:999px;
+  padding:10px 14px;
+  font-weight:600;
+  box-shadow:0 0 8px rgba(255,77,77,.25);
+}
+
+.reset-danger:hover{
+  transform:translateY(-1px);
+  box-shadow:0 0 12px rgba(255,77,77,.45);
+}
+
+button:hover{
+  transform:translateY(-1px);
+  box-shadow:0 4px 10px rgba(47,85,212,.4);
+}
+
+button.danger{
+  background:#5a1a1a;
+  border-color:#ff4d4d;
+}
+
+.flex{
+  display:flex;
+  gap:10px;
+  justify-content:center;
+}
+
+/* ================== SYSTEM FOOTER ================== */
+.system-footer{
+  margin-top:16px;
+  opacity:0.95;
+}
+
+/* STATUS TEXT */
+.footer-status{
+  font-size:13px;
+  font-weight:500;
+  margin-bottom:8px;
+  transition:color .3s ease, text-shadow .3s ease;
+}
+
+/* ================== FOOTER COLOR STATES ================== */
+.footer-green{
+  color:#2ecc71;
+  text-shadow:
+    0 0 6px rgba(46,204,113,.45),
+    0 0 12px rgba(46,204,113,.25);
+}
+
+.footer-red{
+  color:#ff4d4d;
+  text-shadow:
+    0 0 6px rgba(255,77,77,.45),
+    0 0 12px rgba(255,77,77,.25);
+}
+
+.footer-violet{
+  color:#c77dff;
+  text-shadow:
+    0 0 6px rgba(199,125,255,.5),
+    0 0 14px rgba(199,125,255,.35);
+}
+
+.footer-wait{
+  color:#f1c40f;
+  text-shadow:0 0 6px rgba(241,196,15,.35);
+  animation:pulseGlow 2s infinite;
+}
+
+/* ================== CONFIDENCE BAR ================== */
+.confidence-bar{
+  width:100%;
+  height:6px;
+  background:#1a2555;
+  border-radius:6px;
+  overflow:hidden;
+  margin-bottom:6px;
+  position:relative;
+}
+
+#confidenceFill{
+  height:100%;
+  width:0%;
+  background:#2ecc71;
+  transition:width .4s ease, background .4s ease;
+  position:relative;
+}
+
+/* subtle scanner shimmer */
+#confidenceFill::after{
+  content:"";
+  position:absolute;
+  inset:0;
+  opacity:.18;
+  background:linear-gradient(
+    90deg,
+    transparent,
+    rgba(255,255,255,.45),
+    transparent
+  );
+  animation:scan 2.5s linear infinite;
+}
+
+/* ================== WARNING TEXT ================== */
+.footer-warning{
+  font-size:11px;
+  opacity:.55;
+}
+
+.footer-regard{
+  font-size:11px;
+  opacity:.55;
+}
+
+/* ================== ANIMATIONS ================== */
+@keyframes pulseGlow{
+  0%{text-shadow:0 0 4px transparent}
+  50%{text-shadow:0 0 14px currentColor}
+  100%{text-shadow:0 0 4px transparent}
+}
+
+.footer-pulse{
+  animation:pulseGlow 1.4s infinite;
+}
+
+@keyframes scan{
+  0%{transform:translateX(-100%)}
+  100%{transform:translateX(100%)}
+}
+
+/* ===== PREDICTION CARD HIGHLIGHT ===== */
+#predictionBox{
+  text-align:center;
+  font-size:18px;
+  line-height:1.4;
+}
+
+#predictionBox .green{
+  color:#2ecc71;
+  text-shadow:0 0 8px rgba(46,204,113,.6);
+  font-weight:700;
+}
+
+#predictionBox .red{
+  color:#ff4d4d;
+  text-shadow:0 0 8px rgba(255,77,77,.6);
+  font-weight:700;
+}
+
+#predictionBox .wait{
+  color:#f1c40f;
+  opacity:.85;
+  font-weight:600;
+}
+
+/* ===== STATUS UI ===== */
+.status-live{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  font-weight:600;
+  margin-bottom:6px;
+}
+
+.status-dot{
+  width:10px;
+  height:10px;
+  border-radius:50%;
+  background:#2ecc71;
+  box-shadow:0 0 8px rgba(46,204,113,.8);
+}
+
+/* ===== TIMER UI ===== */
+.timer-live{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  font-size:13px;
+  opacity:.85;
+}
+
+.timer-dot{
+  width:8px;
+  height:8px;
+  border-radius:50%;
+  background:#f1c40f;
+  box-shadow:0 0 6px rgba(241,196,15,.8);
+  animation:timerPulse 1.5s infinite;
+}
+
+@keyframes timerPulse{
+  0%{opacity:.4}
+  50%{opacity:1}
+  100%{opacity:.4}
+}
+
+#predictionBox{
+  position:relative;
+}
+
+#predictionBox::after{
+  content:"";
+  position:absolute;
+  inset:0;
+  border-radius:14px;
+  pointer-events:none;
+  opacity:.35;
+}
+
+#predictionBox .wait::after{
+  content:" ⏳";
+}
+
+#resultBox{
+  font-size:15px;
+  opacity:.9;
+}
+
+#statsBox{
+  transition:box-shadow .3s ease;
+}
+
+/* extra compact feel */
+.card{
+  padding:12px 12px;
+  margin-bottom:12px;
+}
+
+/* tighter spacing for mobile */
+.prediction-header{
+  font-size:14px;
+}
+
+.conf-row{
+  font-size:11px;
+}
+
+/* good stats glow (controlled from JS) */
+#statsBox.good{
+  box-shadow:0 0 14px rgba(46,204,113,.25);
+  border-color:#2ecc71;
+}
+
+.system-footer{
+  margin-top:18px;
+  text-align:center;
+}
+
+.footer-status{
+  letter-spacing:.2px;
+}
+
+.card + .card{
+  border-top:1px solid rgba(255,255,255,.04);
+}
+
+#resultBox{
+  text-align:center;
+  font-size:18px;
+  line-height:1.3;
+}
+
+#statsBox{
+  text-align:center;
+  font-size:18px;
+  line-height:1.3;
+}
+
+#statsBox span{
+  font-weight:600;
+}
+
+.accuracy{
+  color:#6aa9ff; /* calm blue */
+  font-weight:600;
+}
+
+/* ===== COMPACT STATUS UI ===== */
+.status-mini{
+  padding:10px 12px;
+}
+
+.status-row{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  margin-bottom:6px;
+}
+
+.time-pill{
+  margin-left:auto;
+  background:#101f4a;
+  padding:4px 8px;
+  border-radius:999px;
+  font-size:12px;
+  border:1px solid #1f3b8f;
+}
+
+.bet-row{
+  display:flex;
+  align-items:center;
+  gap:6px;
+  font-size:13px;
+}
+
+#baseBet{
+  width:60px;
+  padding:4px 6px;
+  border-radius:6px;
+  border:1px solid #2f55d4;
+  background:#0b1535;
+  color:white;
+  text-align:center;
+}
+
+.ok-btn{
+  padding:4px 8px;
+  font-size:12px;
+}
+
+.level-badge{
+  margin-left:auto;
+  background:#0b1535;
+  padding:4px 8px;
+  border-radius:999px;
+  border:1px solid #2f55d4;
+  font-size:12px;
+}
+
+.current-bet{
+  margin-top:6px;
+  font-size:13px;
+  opacity:.9;
+}
+
+/* ===== CLEAN COMPACT HEADER ===== */
+.app-header{
+  margin-bottom:14px;
+}
+
+.app-title{
+  font-size:20px;
+  display:flex;
+  align-items:center;
+  gap:8px;
+}
+
+.badge{
+  background:#1f3b8f;
+  color:#c7e0ff;
+  padding:3px 8px;
+  border-radius:999px;
+  font-size:11px;
+  border:1px solid #2f55d4;
+}
+
+.app-id{
+  font-size:12px;
+  margin-top:4px;
+  opacity:.85;
+}
+
+/* ========== CUTE COMPACT PREDICTION UI ========== */
+.prediction-header{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  font-size:15px;
+  margin-bottom:6px;
+}
+
+.pred-pill{
+  background:#101f4a;
+  padding:4px 10px;
+  border-radius:999px;
+  border:1px solid #1f3b8f;
+  font-weight:700;
+}
+
+.conf-row{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  font-size:12px;
+  opacity:.85;
+  margin-top:6px;
+}
+
+.lock-badge{
+  background:#0b1535;
+  padding:3px 8px;
+  border-radius:999px;
+  border:1px solid #2f55d4;
+}
+
+.pred-small{
+  font-size:12px;
+  opacity:.85;
+}
+
+/* tiny glow per color */
+.pred-green{ box-shadow:0 0 10px rgba(46,204,113,.2); }
+.pred-red{ box-shadow:0 0 10px rgba(255,77,77,.2); }
+.pred-wait{ box-shadow:0 0 10px rgba(241,196,15,.2); }
+
+/* ========== CUTE RESULT BOX ========== */
+.result-header{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  font-size:15px;
+  margin-bottom:6px;
+}
+
+.result-pill{
+  background:#101f4a;
+  padding:4px 10px;
+  border-radius:999px;
+  border:1px solid #1f3b8f;
+  font-weight:700;
+}
+
+.result-small{
+  font-size:12px;
+  opacity:.85;
+}
+
+/* glow by result */
+.res-win{ box-shadow:0 0 10px rgba(46,204,113,.2); }
+.res-loss{ box-shadow:0 0 10px rgba(255,77,77,.2); }
+.res-wait{ box-shadow:0 0 10px rgba(241,196,15,.2); }
+
+/* ========== CUTE STATS BOX ========== */
+.stats-header{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  font-size:15px;
+  margin-bottom:6px;
+}
+
+.stats-pill{
+  background:#101f4a;
+  padding:4px 10px;
+  border-radius:999px;
+  border:1px solid #1f3b8f;
+  font-weight:700;
+}
+
+.stats-small{
+  font-size:12px;
+  opacity:.85;
+}
+
+/* ===== FIX ALIGNMENT ===== */
+#predictionBox, #resultBox, #statsBox{
+  text-align:left;
+}
+
+/* ========== PREDICTION PILL (VIBRANT) ========== */
+.pred-pill{
+  min-width:75px;
+  text-align:center;
+  padding:5px 10px;
+  border-radius:999px;
+  font-weight:700;
+  border:1px solid rgba(255,255,255,.12);
+  backdrop-filter:blur(6px);
+}
+
+/* ✅ CONFIDENT GREEN */
+.pred-green{
+  background:linear-gradient(135deg,#0f3b2b,#0a6b47);
+  color:#2eff88;
+  box-shadow:0 0 10px rgba(46,255,136,.25);
+}
+
+/* ❌ AGGRESSIVE RED */
+.pred-red{
+  background:linear-gradient(135deg,#3b0f0f,#8a1a1a);
+  color:#ff6b6b;
+  box-shadow:0 0 10px rgba(255,77,77,.25);
+}
+
+/* ⏳ WAIT / NEUTRAL */
+.pred-wait{
+  background:linear-gradient(135deg,#2a240d,#7a650f);
+  color:#ffe066;
+  box-shadow:0 0 10px rgba(241,196,15,.25);
+}
+
+/* 💜 VIOLET ZONE */
+./* === SIMPLE VIOLET FIX (NO UI CHANGE) === */
+.pred-violet{
+  background:linear-gradient(135deg,#2a0d3b,#6b1a8a);
+  color:#e0a3ff;
+  box-shadow:0 0 10px rgba(199,125,255,.3);
+}
+
+/* 📉 WEAK EDGE */
+.pred-weak{
+  background:linear-gradient(135deg,#0d1f2a,#1f4a7a);
+  color:#8fc2ff;
+  box-shadow:0 0 10px rgba(106,169,255,.25);
+}
+
+/* 🔒 LOCKED TRADE */
+.pred-locked{
+  background:linear-gradient(135deg,#0d1a2a,#1a3b6b);
+  color:#c7e0ff;
+  box-shadow:0 0 10px rgba(47,85,212,.25);
+}
+
+/* ========== RESULT TEXT ========== */
+#resultText{
+  margin-top:6px;
+  font-size:15px;
+  letter-spacing:.2px;
+  opacity:.95;
+}
+
+/* ========== CONFIDENCE ========== */
+#predConfidence{
+  font-weight:800;
+  color:#7fb7ff;
+  text-shadow:0 0 6px rgba(127,183,255,.35);
+}
+
+/* ========== ACCURACY PILL ========== */
+#accuracyPill{
+  min-width:75px;
+  text-align:center;
+  padding:5px 10px;
+  border-radius:999px;
+  background:linear-gradient(135deg,#0d1f2a,#1f4a7a);
+  color:#8fc2ff;
+  box-shadow:0 0 10px rgba(106,169,255,.25);
+}
+
+/* ========== CUTE LATEST RESULTS ========== */
+.latest-box{
+  border:1px solid #1f3b8f;
+}
+
+.latest-header{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  font-size:15px;
+  margin-bottom:6px;
+}
+
+.latest-pill{
+  background:#101f4a;
+  padding:4px 10px;
+  border-radius:999px;
+  border:1px solid #1f3b8f;
+  font-size:12px;
+  color:#8fc2ff;
+}
+
+/* style each history line nicely */
+#history div{
+  padding:6px 0;
+  border-bottom:1px solid rgba(255,255,255,.06);
+  font-size:13px;
+}
+
+#history div:last-child{
+  border-bottom:none;
+}
+
+/* ========== SUPER COMPACT LATEST RESULTS ========== */
+
+.latest-box{
+  padding:10px 12px;   /* smaller padding */
+}
+
+/* Header row */
+.latest-header{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  font-size:14px;
+  margin-bottom:6px;
+}
+
+/* tiny pill */
+.latest-pill{
+  background:#101f4a;
+  padding:3px 8px;
+  border-radius:999px;
+  border:1px solid #1f3b8f;
+  font-size:11px;
+  color:#8fc2ff;
+}
+
+/* list container */
+.latest-list{
+  display:flex;
+  flex-direction:column;
+  gap:5px;   /* much tighter spacing */
+}
+
+/* each row */
+.latest-row{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  background:#0b1535;
+  padding:6px 8px;   /* smaller padding */
+  border-radius:8px;
+  border:1px solid #1f3b8f;
+  font-size:12px;   /* smaller but readable */
+}
+
+/* make color tags smaller & pill-like */
+.latest-row .green,
+.latest-row .red,
+.latest-row .violet{
+  font-weight:600;
+  padding:2px 6px;
+  border-radius:6px;
+}
+
+.latest-list{
+  display:flex;
+  flex-direction:column;
+  gap:5px;
+}
+
+.latest-row{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  background:#0b1535;
+  padding:6px 8px;
+  border-radius:8px;
+  border:1px solid #1f3b8f;
+  font-size:12px;
+}
+
+</style>
+</head>
+
+<body>
+
+<audio id="betSound" src="alert.mp3" preload="auto"></audio>
+
+<div class="container">
+
+<div class="app-header">
+  <div class="app-title">
+    🤖 <b>Kira Predictor</b>
+    <span class="badge">5/6</span>
+  </div>
+  <div class="app-id">
+    🆔 DM for access: <b>@wtf.hrs</b>
+  </div>
+</div>
+
+<div class="card status-mini">
+
+  <div class="status-row">
+    <span class="status-dot"></span>
+    <b>LIVE</b>
+    <span class="time-pill">⏱ <b id="timer">--</b>s</span>
+  </div>
+
+  <div class="bet-row">
+    <span>💰 Base:</span>
+    <input id="baseBet" type="number" placeholder="₹999" />
+    <button onclick="setBaseBet()" class="ok-btn">OK</button>
+
+    <span class="level-badge">📈 Lv:<b id="levelDisplay">1</b></span>
+  </div>
+
+  <div class="current-bet">
+    ➜ Current Bet: <b id="currentBet">₹5</b>
+  </div>
+
+</div>
+
+<div class="card" id="predictionBox">
+  <div class="prediction-header">
+    <span class="lock-badge">🔒 Locked Bet</span>
+    <span id="predPill" class="pred-pill">WAIT</span>
+  </div>
+
+  <div class="pred-small" id="predIssue"></div>
+
+  <div class="conf-row">
+    <span>🎯 Confidence</span>
+    <span id="predConfidence">--%</span>
+  </div>
+</div>
+
+<div class="card" id="resultBox">
+  <div class="result-header">
+    <span class="result-pill result-wait">⏳ RESULT</span>
+    <span class="result-small">Live round</span>
+  </div>
+
+  <div class="center result-wait" id="resultText">
+    ✨ Waiting for result…
+  </div>
+</div>
+
+<div class="card" id="statsBox">
+  <div class="prediction-header">
+    <span>📊 Performance</span>
+    <span id="accuracyPill" class="pred-pill">🔥 0%</span>
+  </div>
+
+  <div class="center">
+    <span class="green">✅ <b id="winCount">0</b></span>
+    &nbsp; | &nbsp;
+    <span class="red">❌ <b id="lossCount">0</b></span>
+  </div>
+</div>
+
+<div class="flex">
+  <button class="reset-btn" onclick="resetStats()">🎭 Reset Stats</button>
+  <button class="reset-danger" onclick="resetHardStop()">🛑 Reset LOSS</button>
+</div>
+
+<div class="card latest-box">
+
+  <div class="latest-header">
+    <span>📜 Latest Results</span>
+    <span class="latest-pill">Live feed</span>
+  </div>
+
+  <div class="latest-list" id="history"></div>
+
+</div>
+
+<div class="small center system-footer">
+  <div id="footerStatus" class="footer-status">
+    🧠 Initializing engine…
+  </div>
+  <div class="footer-warning">
+    ⚠️ No guarantees • Avoid over-betting • Stay disciplined ⚠️
+  </div>
+    <div class="footer-regard">
+   ✊ 2026 • All Right • Reserved 💦
+  </div>
+</div>
+
+
+</div>
+
+<script>
+const API =
+"https://draw.ar-lottery01.com/WinGo/WinGo_1M/GetHistoryIssuePage.json?pageNo=1&pageSize=10";
+
+const history = document.getElementById("history");
+
+function setBaseBet(){
+  const input = document.getElementById("baseBet").value;
+  const amount = Number(input);
+
+  if(!amount || amount <= 0){
+    alert("Enter valid amount");
+    return;
+  }
+
+  state.baseBet = amount;
+  state.level = 1;
+  state.currentBet = amount;
+
+  updateLevelUI();
+  save();
+}
+
+function updateLevelUI(){
+  document.getElementById("levelDisplay").innerText = state.level;
+  document.getElementById("currentBet").innerText = "₹" + state.currentBet;
+}
+
+/* ================= STATE ================= */
+let state = JSON.parse(localStorage.getItem("dmwin_color_state")) || {
+  wins: 0,
+  losses: 0,
+  lossStreak: 0,
+  winStreak: 0,
+  cooldownRounds: 0,
+  hardStop: false,
+
+  lockedIssue: null,
+  lockedPrediction: null,
+  evaluatedIssue: null,
+
+  lastBetIssue: null,      // 🔧 IMPORTANT FOR FOOTER SYNC
+  lastConfidence: null,
+  lastOutcome: null,
+  lastWaitReason: null,
+  violetRisk: false,
+  
+  baseBet: 0,
+  currentBet: 0,
+  level: 1
+};
+
+// Ensure UI always matches stored state on refresh
+setTimeout(updateLevelUI, 100);
+
+function save(){
+  localStorage.setItem("dmwin_color_state",JSON.stringify(state));
+}
+
+function clearLastOutcome(){
+  if(state.lastOutcome){
+    setTimeout(()=>{
+      state.lastOutcome = null;
+      save();
+    }, 7000); // show result for 7 seconds
+  }
+}
+
+/* ================= BET SOUND SYSTEM ================= */
+let lastSoundIssue = null;
+
+function playBetSound(issue){
+  if(lastSoundIssue === issue) return; // prevent duplicate sound
+  lastSoundIssue = issue;
+
+  const sound = document.getElementById("betSound");
+  if(sound){
+    sound.currentTime = 0;
+    sound.play().catch(()=>{});
+  }
+}
+
+/* ================= HELPERS ================= */
+function colorOf(n){
+  const num = Number(n);
+  if(Number.isNaN(num)) return "";
+
+  if(num === 0) return "red,violet";
+  if(num === 5) return "green,violet";
+
+  return num % 2 === 0 ? "red" : "green";
+}
+
+function nextIssue(issue){
+  if(!issue || issue.length < 3) return issue;
+
+  const base = issue.slice(0, -2);
+  const last = Number(issue.slice(-2));
+
+  if(Number.isNaN(last)) return issue;
+
+  return base + String(last + 1).padStart(2, "0");
+}
+
+/* ================= AI CORE — PATH B (LEVEL MODEL — CLEAN) ================= */
+function analyze(list){
+
+  /* SAFETY */
+  if(!list || list.length < 6){
+    state.lastWaitReason = "📡 Syncing data";
+    save();
+    return { action:"WAIT", reason:"📡 Syncing data" };
+  }
+
+  /* HARD STOP */
+  if(state.hardStop){
+    state.lastWaitReason = "🛑 Hard stop active";
+    save();
+    return { action:"WAIT", reason:"🛑 Hard stop active" };
+  }
+
+  /* READ-ONLY COOLDOWN (ONLY VISUAL SKIP) */
+  if(state.cooldownRounds > 0){
+    state.lastWaitReason = "🧊 Suggested Skip Active";
+    save();
+    return { action:"WAIT", reason:"🧊 Suggested Skip Active" };
+  }
+
+  const last6 = list.slice(0,6);
+
+  let green = 0, red = 0, violet = 0;
+
+  last6.forEach(i=>{
+    const c = colorOf(i.number);
+    if(c.includes("green")) green++;
+    if(c.includes("red")) red++;
+    if(c.includes("violet")) violet++;
+  });
+
+  /* ABSOLUTE VIOLET BLOCK */
+  if(violet >= 2){
+    state.violetRisk = true;
+    state.lastWaitReason = "💜 Violet zone";
+    save();
+    return { action:"WAIT", reason:"💜 Violet zone" };
+  }
+  state.violetRisk = false;
+
+  /* BASIC EDGE */
+  const edge = Math.abs(green - red);
+
+  /* LEVEL-AWARE RULE (NEW LOGIC) */
+  if(state.lossStreak >= 1 && state.lossStreak <= 3){
+    state.lastWaitReason = "📈 Maintain Level";
+    save();
+    // IMPORTANT: we DO NOT block betting here
+  }
+
+  /* MINIMUM EDGE RULE */
+  if(edge < 1){
+    state.lastWaitReason = "📉 Weak edge";
+    save();
+    return { action:"WAIT", reason:"📉 Weak edge" };
+  }
+
+  /* FINAL PICK — BALANCED */
+  let pick;
+  if(green > red){
+    pick = "GREEN";
+  }else if(red > green){
+    pick = "RED";
+  }else{
+    pick = Math.random() > 0.5 ? "GREEN" : "RED";
+  }
+
+  /* CONFIDENCE (INFO ONLY) */
+  const confidence = Math.min(85, 60 + edge * 6);
+
+  state.lastWaitReason = null;
+  save();
+
+  return {
+    action: pick,
+    confidence
+  };
+}
+
+/* ================= MAIN LOOP ================= */
+async function tick(){
+
+  // 📡 PRO SYNC micro delay
+  await new Promise(r => setTimeout(r, 500));
+
+  let list;
+  try {
+    const res = await fetch(API);
+    const json = await res.json();
+    list = json.data.list;
+
+    /* 👉 ADD HERE — EXACT PLACE 👇 */
+    if(!state.lastOutcome){
+      showWaitingResultUI();
+    }
+
+  } catch(e){
+    console.log("API error", e);
+    return; // skip this tick safely
+  }
+
+await new Promise(r => setTimeout(r, 1200));
+
+  const completedIssue = list[0].issueNumber;
+  const bettingIssue   = nextIssue(completedIssue);
+  const latestColors   = colorOf(list[0].number);
+
+/* === RESULT CHECK (LEVEL MANAGEMENT MODEL) === */
+if (
+  state.lockedIssue === completedIssue &&
+  state.evaluatedIssue !== completedIssue &&
+  state.lockedPrediction
+) {
+
+  if (latestColors.includes(state.lockedPrediction)) {
+
+    /* ✅ WIN → RESET LEVEL */
+    state.wins++;
+    state.winStreak++;
+    state.lossStreak = 0;
+    state.cooldownRounds = 0;
+    state.lastOutcome = "WIN";
+
+    state.level = 1;
+    state.currentBet = state.baseBet;
+
+    resultBox.innerHTML = `
+<div class="result-header">
+  <span>📜 Last Bet</span>
+  <span class="result-pill green">WIN</span>
+</div>
+<div class="result-small">System validated outcome</div>
+`;
+resultBox.className = "card res-win";
+
+  } else {
+
+    /* ❌ LOSS → INCREASE LEVEL */
+    state.losses++;
+    state.lossStreak++;
+    state.winStreak = 0;
+    state.lastOutcome = "LOSS";
+
+    resultBox.innerHTML = `
+<div class="result-header">
+  <span>📜 Last Bet</span>
+  <span class="result-pill red">LOSS</span>
+</div>
+<div class="result-small">Risk protection engaged</div>
+`;
+resultBox.className = "card res-loss";
+
+    /* ===== YOUR LEVEL LADDER ===== */
+
+    if (state.lossStreak >= 1 && state.lossStreak <= 3) {
+      state.lastWaitReason = "📈 Maintain Level";
+      state.cooldownRounds = 0;
+    }
+
+    else if (state.lossStreak === 4 || state.lossStreak === 5) {
+      state.lastWaitReason = "🧊 Suggested: Skip 1 bet";
+      state.cooldownRounds = 1;
+    }
+
+    else if (state.lossStreak >= 6) {
+      state.hardStop = true;
+      state.lastWaitReason = "🛑 Hard Stop — risk limit reached";
+    }
+
+    /* 🔼 INCREASE LEVEL & BET (DOUBLING SYSTEM) */
+    if(state.lossStreak < 6){
+  state.level = Math.min(6, state.level + 1);
+  state.currentBet = state.baseBet * Math.pow(2, state.level - 1);
+}
+  }
+
+  /* 🔓 CLEAR TRADE */
+  state.lockedPrediction = null;
+  state.lockedIssue = null;
+
+  /* ✅ FIX — decrement skip EVERY tick until zero */
+  if (state.cooldownRounds > 0) {
+    state.cooldownRounds = Math.max(0, state.cooldownRounds - 1);
+  }
+
+  state.evaluatedIssue = completedIssue;
+  updateLevelUI();
+  save();
+}
+
+
+  /* === PREDICTION LOCK === */
+  if(state.lockedIssue !== bettingIssue){
+    const d = analyze(list);
+
+    if(d.action === "WAIT"){
+
+  predictionBox.innerHTML = `
+<div class="prediction-header">
+  <span>⏸ Prediction</span>
+  <span class="pred-pill wait">WAIT</span>
+</div>
+<div class="pred-small">${d.reason}</div>
+`;
+predictionBox.className = "card pred-wait";
+
+  state.lastWaitReason = d.reason;
+  save();
+
+}else{
+      state.lockedIssue = bettingIssue;
+state.lockedPrediction = d.action.toLowerCase();
+state.lastWaitReason = null;
+state.lastConfidence = d.confidence;
+save();
+
+playBetSound(bettingIssue);
+
+      predictionBox.innerHTML = `
+<div class="prediction-header">
+  <span>🔒 Locked Bet</span>
+  <span class="pred-pill ${d.action.toLowerCase()}">
+    ${d.action}
+  </span>
+</div>
+
+<div class="conf-row">
+  <span>📌 ${bettingIssue}</span>
+  <span class="lock-badge">🎯 ${state.lastConfidence}%</span>
+</div>
+`;
+predictionBox.className = "card pred-" + d.action.toLowerCase();
+    }
+  }else{
+    predictionBox.innerHTML = `
+<div class="prediction-header">
+  <span>🔒 Locked Bet</span>
+  <span class="pred-pill ${state.lockedPrediction}">
+    ${state.lockedPrediction.toUpperCase()}
+  </span>
+</div>
+
+<div class="conf-row">
+  <span>📌 ${state.lockedIssue}</span>
+  <span class="lock-badge">🎯 ${state.lastConfidence || "--"}%</span>
+</div>
+`;
+predictionBox.className = "card pred-" + state.lockedPrediction;
+  }
+
+  /* === STATS === */
+  const total = state.wins + state.losses;
+  const acc   = total ? Math.round((state.wins / total) * 100) : 0;
+  statsBox.innerHTML = `
+<div class="stats-header">
+  <span>📊 Performance</span>
+  <span class="stats-pill accuracy">🔥 ${acc}%</span>
+</div>
+
+<div class="center">
+  <span class="green">✅ <b>${state.wins}</b></span>
+  &nbsp; | &nbsp;
+  <span class="red">❌ <b>${state.losses}</b></span>
+</div>
+`;
+
+  /* === LATEST RESULTS (COMPLETED ONLY) === */
+  history.innerHTML = list.slice(0,5).map(i=>{
+    const parts = colorOf(i.number).split(",");
+    const html = parts.map(p=>`<span class="${p}">${p}</span>`).join(" + ");
+    return `<div>${i.issueNumber} → ${html}</div>`;
+  }).join("");
+}
+
+/* ================= TIMER ================= */
+setInterval(()=>{
+  const s = new Date().getSeconds();
+  const remain = s === 0 ? 60 : 60 - s;
+  const el = document.getElementById("timer");
+  if(el) el.innerText = remain;
+},500);
+
+/* ================= CONTROLS ================= */
+function resetStats(){
+  state.wins = 0;
+  state.losses = 0;
+  state.winStreak = 0;
+  state.lossStreak = 0;
+  state.lockedIssue = null;
+  state.lockedPrediction = null;
+  state.evaluatedIssue = null;
+  save();
+  location.reload();
+}
+
+function resetHardStop(){
+  state.lossStreak = 0;
+  state.hardStop = false;
+  save();
+  alert("Hard stop reset");
+}
+
+/* ================= START ================= */
+function startSyncedLoop(){
+  tick(); // run immediately once
+
+  const now = new Date();
+  const delay = (60 - now.getSeconds()) * 1000;
+
+  setTimeout(()=>{
+    tick(); // run exactly at next minute boundary
+    updateLevelUI();
+    setInterval(tick, 3000); // then perfectly aligned
+  }, delay);
+}
+
+startSyncedLoop();
+/* ===== CLEAR RESULT MESSAGE AFTER DISPLAY ===== */
+function showWaitingResultUI(){
+  resultBox.innerHTML = `
+  <div class="result-header">
+    <span class="result-pill result-wait">⏳ RESULT</span>
+    <span class="result-small">Live round</span>
+  </div>
+
+  <div class="center result-wait" id="resultText">
+✨ Waiting for result…
+  </div>
+  `;
+  resultBox.className = "card res-wait";
+}
+/* ================= FOOTER — WIN/LOSS STREAK SYNC ================= */
+
+let footerTick = 0;
+const OWNER_TAG = "🧠 KIRA • Built by HARSH";
+
+/* helper: auto-clear outcome so footer doesn’t get stuck */
+function clearOutcomeSoon(){
+  if(state.lastOutcome){
+    setTimeout(()=>{
+      state.lastOutcome = null;
+      save();
+    }, 5000);
+  }
+}
+
+/* ===== HELPER: build streak label ===== */
+function getStreakLabel(){
+  if(state.winStreak > 0){
+    return `🔥 ${state.winStreak} WIN STREAK`;
+  }
+  if(state.lossStreak > 0){
+    return `⚠️ ${state.lossStreak} LOSS STREAK`;
+  }
+  return "⚖️ No active streak";
+}
+
+function getFooterMessages(){
+
+  /* 1️⃣ HARD STOP */
+  if(state.hardStop){
+    return [
+      "🛑 HARD STOP ACTIVE",
+      "🧊 Trading disabled",
+      "🔄 Manual reset required",
+      OWNER_TAG
+    ];
+  }
+
+  /* 2️⃣ VIOLET ZONE */
+  if(state.violetRisk){
+    return [
+      "🟣 Violet zone detected",
+      "⚠️ Market unstable",
+      "⏸ Trades blocked",
+      OWNER_TAG
+    ];
+  }
+
+  /* 3️⃣ COOLDOWN */
+  if(state.cooldownRounds > 0){
+    return [
+      "🧊 Cooldown active",
+      `⏳ Skip rounds left: ${Math.max(0, state.cooldownRounds)}`,
+      getStreakLabel(),
+      OWNER_TAG
+    ];
+  }
+
+  /* 4️⃣ LAST OUTCOME — WIN */
+  if(state.lastOutcome === "WIN"){
+    clearOutcomeSoon();
+    return [
+      "✅ WIN confirmed",
+      `🔥 Win streak: ${state.winStreak}`,
+      "📈 Bias reinforced",
+      OWNER_TAG
+    ];
+  }
+
+  /* 5️⃣ LAST OUTCOME — LOSS */
+  if(state.lastOutcome === "LOSS"){
+    clearOutcomeSoon();
+    return [
+      "❌ LOSS confirmed",
+      `⚠️ Loss streak: ${state.lossStreak}`,
+      "🧊 Risk tightened",
+      OWNER_TAG
+    ];
+  }
+
+  /* 6️⃣ WAIT MODE */
+  if(!state.lockedPrediction){
+    return [
+      "⏸ WAIT MODE",
+      state.lastWaitReason || "🧠 Evaluating market",
+      getStreakLabel(),
+      OWNER_TAG
+    ];
+  }
+
+  /* 7️⃣ LOCKED BET */
+  return [
+    `🔒 Locked ${state.lockedPrediction.toUpperCase()}`,
+    `⏳ Period ${state.lockedIssue}`,
+    getStreakLabel(),
+    OWNER_TAG
+  ];
+}
+
+/* ============== FOOTER RENDER LOOP ============== */
+setInterval(()=>{
+  const el = document.getElementById("footerStatus");
+  if(!el) return;
+
+  const msgs = getFooterMessages();
+  const msg  = msgs[footerTick % msgs.length];
+  footerTick++;
+
+  el.className = "footer-status";
+
+  if(state.hardStop){
+    el.classList.add("footer-red");
+  }
+  else if(state.violetRisk){
+    el.classList.add("footer-violet");
+  }
+  else if(state.lastOutcome === "WIN"){
+    el.classList.add("footer-green");
+  }
+  else if(state.lastOutcome === "LOSS"){
+    el.classList.add("footer-red");
+  }
+  else if(state.lockedPrediction === "green"){
+    el.classList.add("footer-green");
+  }
+  else if(state.lockedPrediction === "red"){
+    el.classList.add("footer-red");
+  }
+  else{
+    el.classList.add("footer-wait");
+  }
+
+  el.innerText = msg;
+
+}, 1500);
+</script>
+
+</body>
+</html>
