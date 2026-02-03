@@ -997,7 +997,7 @@ function analyze(list){
   }
 
   /* MINIMUM EDGE RULE */
-  if(edge < 1){
+  if(edge < 2){
     state.lastWaitReason = "📉 Weak edge";
     save();
     return { action:"WAIT", reason:"📉 Weak edge" };
