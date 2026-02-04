@@ -1116,9 +1116,10 @@ resultBox.className = "card res-loss";
     }
 
     /* 🔼 INCREASE LEVEL & BET (DOUBLING SYSTEM) */
-if(state.lossStreak > 0 && state.lossStreak < 7){
-  state.level = Math.min(7, state.level + 1);
-  state.currentBet = state.baseBet * Math.pow(2, state.level - 1);
+if(state.lossStreak < 6){
+state.level = Math.min(6, state.level + 1);
+state.currentBet = state.baseBet * Math.pow(2, state.level - 1);
+}
 }
 
   /* 🔓 CLEAR TRADE */
